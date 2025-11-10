@@ -11,6 +11,15 @@ import (
 var _ = net.Listen
 var _ = os.Exit
 
+func intToBytes(n int32) []byte {
+	return []byte{
+		byte(n >> 24),
+		byte(n >> 16),
+		byte(n >> 8),
+		byte(n),
+	}
+}
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
@@ -29,7 +38,7 @@ func main() {
 			if err != nil {
 				log.Fatal("Error accepting connection: ", err.Error())
 			}
-			var response []byte = []byte{0, 7}
+			var response []byte = append(intToBytes(0), intToBytes(7)...)
 
 			c.Write(response)
 		}()
