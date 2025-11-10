@@ -38,7 +38,11 @@ func main() {
 			if err != nil {
 				log.Fatal("Error accepting connection: ", err.Error())
 			}
-			var response []byte = append(intToBytes(0), intToBytes(7)...)
+			var correlation_id = make([]byte, 12)
+			c.Read(correlation_id)
+
+			correlation_id = correlation_id[8:12]
+			response := append(intToBytes(0), correlation_id...)
 
 			c.Write(response)
 		}()
