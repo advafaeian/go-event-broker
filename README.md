@@ -1,6 +1,6 @@
-# Go Message Broker
+# Go Event Broker
 
-Go-message-broker is a lightweight Kafka clone written in Go as part of the [Codecrafters challenge](https://app.codecrafters.io/courses/kafka/overview).
+Go-event-broker is a lightweight Kafka clone written in Go as part of the [Codecrafters challenge](https://app.codecrafters.io/courses/kafka/overview).
 
 I'm Documenting progress and insights while completing each stage of the challenge.
 

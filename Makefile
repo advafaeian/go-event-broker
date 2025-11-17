@@ -1,4 +1,4 @@
 server:
-	go run cmd/go-message-broker/main.go
+	go run cmd/go-event-broker/main.go
 
 .PHONY: server
