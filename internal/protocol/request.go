@@ -14,3 +14,10 @@ func ParseRequest(buf []byte, request *Request) error {
 	request.CorrelationId = BytesToInt32(buf[8:12])
 	return nil
 }
+
+func (r *Request) Validate() error {
+	if r.RequestApiVersion > 5 {
+		return ErrUnsupportedVersion
+	}
+	return nil
+}

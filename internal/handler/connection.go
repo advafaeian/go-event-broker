@@ -18,12 +18,25 @@ func HandleConnection(conn net.Conn) {
 	}
 
 	request := protocol.Request{}
-	protocol.ParseRequest(buf, &request)
+	if err := protocol.ParseRequest(buf, &request); err != nil {
+		log.Printf("Error parsing the request: %v", err)
+		return
+	}
+
+	errorCode := int16(0)
+	if err := request.Validate(); err != nil {
+		pErrCode := err.(*protocol.ProtocolError).Code
+		switch pErrCode {
+		case protocol.ErrUnsupportedVersion.Code:
+			log.Printf("Error validating response: %v", err)
+			errorCode = pErrCode
+		}
+	}
 
 	response := protocol.Response{
 		MessageSize:   0,
 		CorrelationID: request.CorrelationId,
-		ErrorCode:     0,
+		ErrorCode:     errorCode,
 	}
 
 	_, err = conn.Write(response.Encode())
