@@ -17,10 +17,16 @@ func HandleConnection(conn net.Conn) {
 		return
 	}
 
-	correlation_id := buf[8:12]
-	response := append(protocol.IntToBytes(0), correlation_id...)
+	request := protocol.Request{}
+	protocol.ParseRequest(buf, &request)
 
-	_, err = conn.Write(response)
+	response := protocol.Response{
+		MessageSize:   0,
+		CorrelationID: request.CorrelationId,
+		ErrorCode:     0,
+	}
+
+	_, err = conn.Write(response.Encode())
 	if err != nil {
 		log.Printf("Error writing response: %v", err)
 		return
