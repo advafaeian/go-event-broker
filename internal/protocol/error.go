@@ -1,5 +1,7 @@
 package protocol
 
+const NoError = int16(0)
+
 type ProtocolError struct {
 	Code    int16
 	Message string

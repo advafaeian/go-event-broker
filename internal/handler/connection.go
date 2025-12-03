@@ -39,7 +39,7 @@ func HandleConnection(conn net.Conn) {
 		log.Printf("Error validating response: %v", err)
 		response.ErrorCode = pErrCode
 	} else {
-		response.ErrorCode = int16(0)
+		response.ErrorCode = protocol.NoError
 		response.ApiKeys = []protocol.ApiKey{{ApiKey: 1, MinVersion: 0, MaxVersion: 11, TagBuffer: []protocol.TaggedField{}},
 			{ApiKey: 18, MinVersion: 0, MaxVersion: 4, TagBuffer: []protocol.TaggedField{}},
 			{ApiKey: 75, MinVersion: 0, MaxVersion: 0, TagBuffer: []protocol.TaggedField{}},
