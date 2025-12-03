@@ -10,11 +10,11 @@ type ApiKey struct {
 }
 
 type ApiVersionsResponse struct {
-	CorrelationID int32
-	ErrorCode     int16
-	ApiKeys       []ApiKey
-	ThrottleMs    int32
-	TagBuffer     []TaggedField
+	ResponseHeader
+	ErrorCode  int16
+	ApiKeys    []ApiKey
+	ThrottleMs int32
+	TagBuffer  []TaggedField
 }
 
 func (r *ApiVersionsResponse) Encode() []byte {

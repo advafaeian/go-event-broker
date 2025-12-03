@@ -30,24 +30,19 @@ func HandleConnection(conn net.Conn) {
 		return
 	}
 
-	var response protocol.ApiVersionsResponse
+	response := protocol.ApiVersionsResponse{
+		ResponseHeader: protocol.ResponseHeader{CorrelationID: request.CorrelationId},
+	}
+
 	if err := request.Validate(); err != nil {
 		pErrCode := err.(*protocol.ProtocolError).Code
 		log.Printf("Error validating response: %v", err)
-		response = protocol.ApiVersionsResponse{
-			CorrelationID: request.CorrelationId,
-			ErrorCode:     pErrCode,
-		}
+		response.ErrorCode = pErrCode
 	} else {
-		response = protocol.ApiVersionsResponse{
-			CorrelationID: request.CorrelationId,
-			ErrorCode:     int16(0),
-			ApiKeys: []protocol.ApiKey{{ApiKey: 1, MinVersion: 0, MaxVersion: 11, TagBuffer: []protocol.TaggedField{}},
-				{ApiKey: 18, MinVersion: 0, MaxVersion: 4, TagBuffer: []protocol.TaggedField{}},
-				{ApiKey: 75, MinVersion: 0, MaxVersion: 0, TagBuffer: []protocol.TaggedField{}},
-			},
-			ThrottleMs: 0,
-			TagBuffer:  []protocol.TaggedField{},
+		response.ErrorCode = int16(0)
+		response.ApiKeys = []protocol.ApiKey{{ApiKey: 1, MinVersion: 0, MaxVersion: 11, TagBuffer: []protocol.TaggedField{}},
+			{ApiKey: 18, MinVersion: 0, MaxVersion: 4, TagBuffer: []protocol.TaggedField{}},
+			{ApiKey: 75, MinVersion: 0, MaxVersion: 0, TagBuffer: []protocol.TaggedField{}},
 		}
 	}
 
