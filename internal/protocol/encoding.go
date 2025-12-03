@@ -29,3 +29,26 @@ func BytesToInt16(buf []byte) int16 {
 		int16(buf[1])
 	return i
 }
+
+func uvarintToBytes(n uint32) []byte {
+	bytes := make([]byte, 0, 1)
+
+	m := n
+
+	var mod uint32
+
+	for m > 0 {
+		mod = m % 128
+		m /= 128
+
+		bdigit := byte(mod)
+
+		if m > 0 {
+			bdigit |= 128
+		}
+
+		bytes = append(bytes, bdigit)
+	}
+
+	return bytes
+}
