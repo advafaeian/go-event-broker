@@ -2,7 +2,7 @@
 
 Go-event-broker is a lightweight Kafka clone written in Go as part of the [Codecrafters challenge](https://app.codecrafters.io/courses/kafka/overview).
 
-I'm Documenting progress and insights while completing each stage of the challenge.
+I'm Documenting the progress while completing each stage of the challenge.
 
 ---
 
@@ -17,7 +17,7 @@ I'm Documenting progress and insights while completing each stage of the challen
 - 🟢 Handle `ApiVersions` requests  
 
 ### 🧩 Concurrent Clients
-- ⚪️ Serial requests  
+- 🟢 Serial requests  
 - ⚪️ Concurrent requests  
 
 ### 🗂️ Listing Partitions
