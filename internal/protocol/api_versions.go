@@ -2,6 +2,16 @@ package protocol
 
 type TaggedField struct{}
 
+const (
+	ApiVersions             int16 = 18
+	DescribeTopicPartitions int16 = 75
+)
+
+var SupportedApiKeys = []ApiKey{
+	{ApiKey: ApiVersions, MinVersion: 0, MaxVersion: 4},
+	{ApiKey: DescribeTopicPartitions, MinVersion: 0, MaxVersion: 0},
+}
+
 type ApiKey struct {
 	ApiKey     int16
 	MinVersion int16

@@ -40,10 +40,7 @@ func HandleConnection(conn net.Conn) {
 			response.ErrorCode = pErrCode
 		} else {
 			response.ErrorCode = protocol.NoError
-			response.ApiKeys = []protocol.ApiKey{{ApiKey: 1, MinVersion: 0, MaxVersion: 11, TagBuffer: []protocol.TaggedField{}},
-				{ApiKey: 18, MinVersion: 0, MaxVersion: 4, TagBuffer: []protocol.TaggedField{}},
-				{ApiKey: 75, MinVersion: 0, MaxVersion: 0, TagBuffer: []protocol.TaggedField{}},
-			}
+			response.ApiKeys = protocol.SupportedApiKeys
 		}
 
 		_, err = conn.Write(response.Encode())
