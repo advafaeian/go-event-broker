@@ -21,7 +21,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 - 🟢 Concurrent requests  
 
 ### 🗂️ Listing Partitions
-- ⚪️ Include `DescribeTopicPartitions` in `ApiVersions`  
+- 🟢️ Include `DescribeTopicPartitions` in `ApiVersions`  
 - ⚪️ List for an unknown topic  
 - ⚪️ List for a single partition  
 - ⚪️ List for multiple partitions  
