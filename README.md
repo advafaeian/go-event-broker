@@ -18,7 +18,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 
 ### 🧩 Concurrent Clients
 - 🟢 Serial requests  
-- ⚪️ Concurrent requests  
+- 🟢 Concurrent requests  
 
 ### 🗂️ Listing Partitions
 - ⚪️ Include `DescribeTopicPartitions` in `ApiVersions`  
