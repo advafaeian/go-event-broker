@@ -19,20 +19,14 @@ func (r *Reader) Int16() int16 {
 	return BytesToInt16(r.buf[r.offset-2 : r.offset])
 }
 
-func Int32ToBytes(n int32) []byte {
-	return []byte{
-		byte(n >> 24),
-		byte(n >> 16),
-		byte(n >> 8),
-		byte(n),
-	}
+func (r *Reader) Int8() int8 {
+	r.offset += 1
+	return BytesToInt8(r.buf[r.offset-1 : r.offset])
 }
 
-func Int16ToBytes(n int16) []byte {
-	return []byte{
-		byte(n >> 8),
-		byte(n),
-	}
+func (r *Reader) TagBuffer() TagBuffer {
+	r.offset += 1
+	return TagBuffer{}
 }
 
 func BytesToInt32(buf []byte) int32 {
@@ -47,6 +41,26 @@ func BytesToInt16(buf []byte) int16 {
 	i := int16(buf[0])<<8 |
 		int16(buf[1])
 	return i
+}
+
+func BytesToInt8(buf []byte) int8 {
+	return int8(buf[0])
+}
+
+func Int32ToBytes(n int32) []byte {
+	return []byte{
+		byte(n >> 24),
+		byte(n >> 16),
+		byte(n >> 8),
+		byte(n),
+	}
+}
+
+func Int16ToBytes(n int16) []byte {
+	return []byte{
+		byte(n >> 8),
+		byte(n),
+	}
 }
 
 func uvarintToBytes(n uint32) []byte {
