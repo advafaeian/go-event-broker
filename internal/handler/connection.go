@@ -17,24 +17,27 @@ func HandleConnection(conn net.Conn) {
 			return
 		}
 
-		var reqBuf = make([]byte, protocol.BytesToInt32(sizeBuf))
+		reqBuf := make([]byte, protocol.BytesToInt32(sizeBuf))
 		_, err = io.ReadFull(conn, reqBuf)
 		if err != nil {
 			log.Printf("Error reading from connection: %v", err)
 			return
 		}
 
-		request := protocol.Request{}
-		if err := protocol.ParseRequest(reqBuf, &request); err != nil {
+		red := protocol.NewReader(reqBuf)
+
+		requestHeader := protocol.RequestHeader{}
+
+		if err := requestHeader.Decode(red); err != nil {
 			log.Printf("Error parsing the request: %v", err)
 			return
 		}
 
 		response := protocol.ApiVersionsResponse{
-			ResponseHeader: protocol.ResponseHeader{CorrelationID: request.CorrelationId},
+			ResponseHeader: protocol.ResponseHeader{CorrelationID: requestHeader.CorrelationId},
 		}
 
-		if err := request.Validate(); err != nil {
+		if err := requestHeader.Validate(); err != nil {
 			pErrCode := err.(*protocol.ProtocolError).Code
 			log.Printf("Error validating response: %v", err)
 			response.ErrorCode = pErrCode

@@ -1,5 +1,24 @@
 package protocol
 
+type Reader struct {
+	buf    []byte
+	offset int
+}
+
+func NewReader(buf []byte) *Reader {
+	return &Reader{buf: buf, offset: 0}
+}
+
+func (r *Reader) Int32() int32 {
+	r.offset += 4
+	return BytesToInt32(r.buf[r.offset-4 : r.offset])
+}
+
+func (r *Reader) Int16() int16 {
+	r.offset += 2
+	return BytesToInt16(r.buf[r.offset-2 : r.offset])
+}
+
 func Int32ToBytes(n int32) []byte {
 	return []byte{
 		byte(n >> 24),

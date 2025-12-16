@@ -1,19 +1,26 @@
 package protocol
 
-type Request struct {
+type ClientID struct {
+	Length   int16
+	Contents string
+}
+
+type RequestHeader struct {
 	RequestApiKey     int16
 	RequestApiVersion int16
 	CorrelationId     int32
+	ClientID          ClientID
+	TagBuffer         TagBuffer
 }
 
-func ParseRequest(buf []byte, request *Request) error {
-	request.RequestApiKey = BytesToInt16(buf[0:2])
-	request.RequestApiVersion = BytesToInt16(buf[2:4])
-	request.CorrelationId = BytesToInt32(buf[4:8])
+func (req *RequestHeader) Decode(red *Reader) error {
+	req.RequestApiKey = red.Int16()
+	req.RequestApiVersion = red.Int16()
+	req.CorrelationId = red.Int32()
 	return nil
 }
 
-func (r *Request) Validate() error {
+func (r *RequestHeader) Validate() error {
 	if r.RequestApiVersion > 5 {
 		return ErrUnsupportedVersion
 	}
