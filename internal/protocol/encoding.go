@@ -102,8 +102,8 @@ func (w *Writer) CompactString(s string) {
 	w.buf = append(w.buf, s...)
 }
 
-func (w *Writer) CompactArray(a []any) {
-
+func (w *Writer) PartitionsArray(a []Partition) {
+	w.buf = append(w.buf, byte(1))
 }
 
 func Int32ToBytes(n int32) []byte {
