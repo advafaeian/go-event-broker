@@ -23,6 +23,9 @@ func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) {
 	req.TagBuffer = red.TagBuffer()
 }
 
-// type DescribeTopicPartitionsResponse struct {
-// 	Header *Request
-// }
+type DescribeTopicPartitionsResponse struct {
+	Header ResponseHeader
+}
+
+func (r *DescribeTopicPartitionsResponse) Encode(w *Writer) {
+}

@@ -1,70 +1,33 @@
 package protocol
 
-type TaggedField struct{}
-
-const (
-	ApiVersions             int16 = 18
-	DescribeTopicPartitions int16 = 75
-)
-
 var SupportedApiKeys = []ApiKey{
-	{ApiKey: ApiVersions, MinVersion: 0, MaxVersion: 4},
-	{ApiKey: DescribeTopicPartitions, MinVersion: 0, MaxVersion: 0},
+	{ApiKey: ApiVersionsKey, MinVersion: 0, MaxVersion: 4},
+	{ApiKey: DescribeTopicPartitionsKey, MinVersion: 0, MaxVersion: 0},
 }
 
 type ApiKey struct {
 	ApiKey     int16
 	MinVersion int16
 	MaxVersion int16
-	TagBuffer  []TaggedField
+	TagBuffer  TagBuffer
 }
 
 type ApiVersionsResponse struct {
-	ResponseHeader
+	Header     ResponseHeader
 	ErrorCode  int16
 	ApiKeys    []ApiKey
 	ThrottleMs int32
-	TagBuffer  []TaggedField
+	TagBuffer  TagBuffer
 }
 
-func (r *ApiVersionsResponse) Encode() []byte {
-
-	result := make([]byte, 0, 128)
-
-	result = append(result, Int32ToBytes(r.CorrelationID)...)
-	result = append(result, Int16ToBytes(r.ErrorCode)...)
-
-	if r.ErrorCode != 0 {
-		return putSize(result)
-	}
-
+func (r *ApiVersionsResponse) Encode(w *Writer) {
+	r.Header.Encode(w)
+	w.Int16(r.ErrorCode)
 	arrayLength := uint32(len(r.ApiKeys) + 1)
-	result = append(result, uvarintToBytes(arrayLength)...)
-	for _, k := range r.ApiKeys {
-		result = append(result, Int16ToBytes(k.ApiKey)...)
-		result = append(result, Int16ToBytes(k.MinVersion)...)
-		result = append(result, Int16ToBytes(k.MaxVersion)...)
+	w.UvarI(arrayLength)
 
-		if len(k.TagBuffer) == 0 {
-			result = append(result, byte(0)) // empty tagfield
-		}
-	}
+	w.ApiKeys(r.ApiKeys)
 
-	result = append(result, Int32ToBytes(r.ThrottleMs)...)
-	result = append(result, byte(0))
-
-	out := putSize(result)
-
-	return out
-}
-
-func putSize(buf []byte) []byte {
-	messageSize := Int32ToBytes(int32(len(buf)))
-
-	out := make([]byte, 4+len(buf))
-
-	copy(out[:4], messageSize)
-	copy(out[4:], buf)
-
-	return out
+	w.Int32(r.ThrottleMs)
+	w.Int8(0)
 }

@@ -29,24 +29,40 @@ func HandleConnection(conn net.Conn) {
 		requestHeader := protocol.RequestHeader{}
 
 		if err := requestHeader.Decode(red); err != nil {
-			log.Printf("Error parsing the request: %v", err)
+			log.Printf("Error parsing the request header: %v", err)
 			return
 		}
 
-		response := protocol.ApiVersionsResponse{
-			ResponseHeader: protocol.ResponseHeader{CorrelationID: requestHeader.CorrelationId},
-		}
-
+		pErrCode := protocol.NoError
 		if err := requestHeader.Validate(); err != nil {
-			pErrCode := err.(*protocol.ProtocolError).Code
-			log.Printf("Error validating response: %v", err)
-			response.ErrorCode = pErrCode
-		} else {
-			response.ErrorCode = protocol.NoError
-			response.ApiKeys = protocol.SupportedApiKeys
+			pErrCode = err.(*protocol.ProtocolError).Code
 		}
 
-		_, err = conn.Write(response.Encode())
+		w := protocol.NewWriter()
+
+		ResponseHeader := protocol.ResponseHeader{CorrelationID: requestHeader.CorrelationId}
+
+		switch requestHeader.RequestApiKey {
+		case protocol.ApiVersionsKey:
+
+			response := protocol.ApiVersionsResponse{
+				Header:    ResponseHeader,
+				ErrorCode: pErrCode,
+				ApiKeys:   protocol.SupportedApiKeys,
+			}
+
+			response.Encode(w)
+
+			_, err = conn.Write(w.Bytes())
+
+		case protocol.DescribeTopicPartitionsKey:
+			response := protocol.DescribeTopicPartitionsResponse{
+				Header: ResponseHeader,
+			}
+			response.Encode(w)
+			_, err = conn.Write(w.Bytes())
+		}
+
 		if err != nil {
 			log.Printf("Error writing response: %v", err)
 			return

@@ -47,6 +47,56 @@ func BytesToInt8(buf []byte) int8 {
 	return int8(buf[0])
 }
 
+type Writer struct {
+	buf []byte
+}
+
+func NewWriter() *Writer {
+	buf := make([]byte, 4, 128)
+	buf[0] = 0
+	return &Writer{buf: buf}
+}
+
+func (w *Writer) Int32(n int32) {
+	w.buf = append(w.buf, Int32ToBytes(n)...)
+}
+
+func (w *Writer) Int16(n int16) {
+	w.buf = append(w.buf, Int16ToBytes(n)...)
+}
+
+func (w *Writer) Int8(n int8) {
+	w.buf = append(w.buf, byte(n))
+}
+
+func (w *Writer) UvarI(n uint32) {
+	w.buf = append(w.buf, uvarintToBytes(n)...)
+}
+
+func (w *Writer) ApiKeys(keys []ApiKey) {
+	for _, k := range keys {
+		w.Int16(k.ApiKey)
+		w.Int16(k.MinVersion)
+		w.Int16(k.MaxVersion)
+		w.TagBuffer(k.TagBuffer)
+	}
+}
+
+func (w *Writer) TagBuffer(t TagBuffer) {
+	if len(t) == 0 {
+		w.Int8(0) // empty tagfield
+	}
+}
+
+func (w *Writer) pathSize() {
+	copy(w.buf[0:4], Int32ToBytes(int32(len(w.buf)-4)))
+}
+
+func (w *Writer) Bytes() []byte {
+	w.pathSize()
+	return w.buf
+}
+
 func Int32ToBytes(n int32) []byte {
 	return []byte{
 		byte(n >> 24),
