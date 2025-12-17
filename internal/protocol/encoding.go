@@ -97,6 +97,15 @@ func (w *Writer) Bytes() []byte {
 	return w.buf
 }
 
+func (w *Writer) CompactString(s string) {
+	w.buf = append(w.buf, byte(int8(len(s))))
+	w.buf = append(w.buf, s...)
+}
+
+func (w *Writer) CompactArray(a []any) {
+
+}
+
 func Int32ToBytes(n int32) []byte {
 	return []byte{
 		byte(n >> 24),

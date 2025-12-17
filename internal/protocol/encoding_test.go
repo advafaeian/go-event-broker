@@ -76,3 +76,26 @@ func TestUvarintToBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestCompactString(t *testing.T) {
+	tests := []struct {
+		name      string
+		testCase  string
+		expResult []byte
+	}{
+		{
+			name:      "salam",
+			testCase:  "salam",
+			expResult: []byte{0, 0, 0, 6, 5, 's', 'a', 'l', 'a', 'm'},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			w := NewWriter()
+			w.CompactString(test.testCase)
+			require.Equal(t, test.expResult, w.Bytes())
+		})
+	}
+}
