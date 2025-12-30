@@ -56,8 +56,22 @@ func HandleConnection(conn net.Conn) {
 			_, err = conn.Write(w.Bytes())
 
 		case protocol.DescribeTopicPartitionsKey:
+
+			req := protocol.DescribeTopicPartitionsRequest{}
+
+			req.Decode(red)
 			response := protocol.DescribeTopicPartitionsResponse{
 				Header: ResponseHeader,
+				Topics: []protocol.Topic{
+					{
+						ErrorCode:  3,
+						TopicName:  req.Topics[0].TopicName,
+						TopicID:    protocol.TopicID(make([]byte, 16)),
+						IsInternal: false,
+						Partitions: []protocol.Partition{},
+					},
+				},
+				NextCursor: nil,
 			}
 			response.Encode(w)
 			_, err = conn.Write(w.Bytes())

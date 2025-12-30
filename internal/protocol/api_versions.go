@@ -21,7 +21,7 @@ type ApiVersionsResponse struct {
 }
 
 func (r *ApiVersionsResponse) Encode(w *Writer) {
-	r.Header.Encode(w)
+	r.Header.Encode(w, 0)
 	w.Int16(r.ErrorCode)
 	arrayLength := uint32(len(r.ApiKeys) + 1)
 	w.UvarI(arrayLength)
