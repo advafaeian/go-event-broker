@@ -1,6 +1,8 @@
 package protocol
 
 import (
+	"bufio"
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -101,10 +103,12 @@ func TestBytesToUvarint(t *testing.T) {
 	}
 
 	for i := range tests {
-		test := tests[i]
-		t.Run(test.name, func(t *testing.T) {
-			_, newint := bytesToUvarint(test.testCase)
-			require.Equal(t, test.expResult, newint)
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			r := bufio.NewReader(bytes.NewReader(tt.testCase))
+			newint, err := bytesToUvarint(r)
+			require.NoError(t, err)
+			require.Equal(t, tt.expResult, newint)
 		})
 	}
 }
@@ -118,16 +122,16 @@ func TestCompactString(t *testing.T) {
 		{
 			name:      "salam",
 			testCase:  "salam",
-			expResult: []byte{0, 0, 0, 6, 5, 's', 'a', 'l', 'a', 'm'},
+			expResult: []byte{0, 0, 0, 6, 6, 's', 'a', 'l', 'a', 'm'},
 		},
 	}
 
 	for i := range tests {
-		test := tests[i]
-		t.Run(test.name, func(t *testing.T) {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
 			w := NewWriter()
-			w.CompactString(test.testCase)
-			require.Equal(t, test.expResult, w.Bytes())
+			w.CompactString(tt.testCase)
+			require.Equal(t, tt.expResult, w.Bytes())
 		})
 	}
 }

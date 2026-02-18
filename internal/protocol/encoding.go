@@ -1,61 +1,96 @@
 package protocol
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"io"
+)
 
 type Reader struct {
-	buf    []byte
-	offset int
+	r *bufio.Reader
 }
 
 func NewReader(buf []byte) *Reader {
-	return &Reader{buf: buf, offset: 0}
+	return &Reader{}
 }
 
-func (r *Reader) Int32() int32 {
-	r.offset += 4
-	return BytesToInt32(r.buf[r.offset-4 : r.offset])
+func (r *Reader) Int32() (int32, error) {
+	var buf [4]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return BytesToInt32(buf[:]), nil
 }
 
-func (r *Reader) Int16() int16 {
-	r.offset += 2
-	return BytesToInt16(r.buf[r.offset-2 : r.offset])
+func (r *Reader) Int16() (int16, error) {
+	var buf [2]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return BytesToInt16(buf[:]), nil
 }
 
-func (r *Reader) Int8() int8 {
-	r.offset += 1
-	return BytesToInt8(r.buf[r.offset-1 : r.offset])
+func (r *Reader) Int8() (int8, error) {
+	var buf [1]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return BytesToInt8(buf[:]), nil
 }
 
-func (r *Reader) Byte() byte {
-	r.offset += 1
-	return r.buf[r.offset-1]
+func (r *Reader) Byte() (byte, error) {
+	var buf [1]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return buf[0], nil
 }
 
 func (r *Reader) TagBuffer() TagBuffer {
-	r.offset += 1
 	return TagBuffer{}
 }
 
-func (r *Reader) VarInt() uint32 {
-	offs, uvi := bytesToUvarint(r.buf[r.offset:])
-	r.offset += offs
-	return uvi
+func (r *Reader) VarInt() (uint32, error) {
+	uvi, err := bytesToUvarint(r.r)
+	if err != nil {
+		return 0, err
+	}
+	return uvi, nil
 }
 
-func (r *Reader) CompactString() string {
-	bytes, lengthPlusOne := bytesToUvarint(r.buf[r.offset:])
-	r.offset += bytes
-	bts := r.buf[r.offset : r.offset+int(lengthPlusOne)-1]
-	r.offset += int(lengthPlusOne) - 1
-	return string(bts)
+func (r *Reader) CompactString() (string, error) {
+	uvi, err := bytesToUvarint(r.r)
+
+	if err != nil {
+		return "", err
+	}
+
+	if uvi == 0 {
+		return "", nil // null
+	}
+
+	buf := make([]byte, uvi)
+
+	_, err = io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
 }
 
-func (r *Reader) Bool() bool {
-	b := r.Byte()
+func (r *Reader) Bool() (bool, error) {
+	b, err := r.r.ReadByte()
+	if err != nil {
+		return false, err
+	}
 	if b == 0 {
-		return false
+		return false, nil
 	} else {
-		return true
+		return true, nil
 	}
 }
 
@@ -128,22 +163,18 @@ func (w *Writer) TagBuffer(t TagBuffer) {
 	}
 }
 
-func (w *Writer) pathSize() {
+func (w *Writer) patchSize() {
 	copy(w.buf[0:4], Int32ToBytes(int32(len(w.buf)-4)))
 }
 
 func (w *Writer) Bytes() []byte {
-	w.pathSize()
+	w.patchSize()
 	return w.buf
 }
 
 func (w *Writer) CompactString(s string) {
-	w.buf = append(w.buf, byte(int8(len(s)+1)))
+	w.buf = append(w.buf, uvarintToBytes(uint32(len(s)+1))...)
 	w.buf = append(w.buf, s...)
-}
-
-func (w *Writer) PartitionsArray(a []Partition) {
-	w.buf = append(w.buf, byte(1))
 }
 
 func (w *Writer) Bool(b bool) {
@@ -197,23 +228,27 @@ func uvarintToBytes(n uint32) []byte {
 	return bytes
 }
 
-func bytesToUvarint(bytes []byte) (int, uint32) {
+func bytesToUvarint(r *bufio.Reader) (uint32, error) {
 
 	var i uint32
 	var counter int
 	cont := byte(1)
-	for n, b := range bytes {
+	for {
 		if cont == 0 {
 			break
 		}
+		b, err := r.ReadByte()
+		if err != nil {
+			return 0, err
+		}
 		cont = b >> 7
-		b &= 127 // 0111...
+		b &= 127 // 127 = 0111...
 		bi := uint32(b)
-		for range n {
+		for range counter {
 			bi *= 128
 		}
 		i = i + bi
 		counter++
 	}
-	return counter, i
+	return i, nil
 }
