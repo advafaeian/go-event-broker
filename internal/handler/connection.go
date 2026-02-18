@@ -24,7 +24,7 @@ func HandleConnection(conn net.Conn) {
 			return
 		}
 
-		red := protocol.NewReader(reqBuf)
+		red := protocol.NewReaderFromBytes(reqBuf)
 
 		requestHeader := protocol.RequestHeader{}
 

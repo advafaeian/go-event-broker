@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 )
@@ -10,8 +11,14 @@ type Reader struct {
 	r *bufio.Reader
 }
 
-func NewReader(buf []byte) *Reader {
-	return &Reader{}
+func NewReader(rd io.Reader) *Reader {
+	return &Reader{
+		r: bufio.NewReader(rd),
+	}
+}
+
+func NewReaderFromBytes(b []byte) *Reader {
+	return NewReader(bytes.NewReader(b))
 }
 
 func (r *Reader) Int32() (int32, error) {
