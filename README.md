@@ -23,7 +23,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 ### 🗂️ Listing Partitions
 - 🟢️ Include `DescribeTopicPartitions` in `ApiVersions`  
 - 🟢️ List for an unknown topic  
-- ⚪️ List for a single partition  
+- 🟢️ List for a single partition  
 - ⚪️ List for multiple partitions  
 - ⚪️ List for multiple topics  
 
