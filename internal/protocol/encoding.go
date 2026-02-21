@@ -3,6 +3,7 @@ package protocol
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -19,6 +20,15 @@ func NewReader(rd io.Reader) *Reader {
 
 func NewReaderFromBytes(b []byte) *Reader {
 	return NewReader(bytes.NewReader(b))
+}
+
+func (r *Reader) Int64() (int64, error) {
+	var buf [8]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return BytesToInt64(buf[:]), nil
 }
 
 func (r *Reader) Int32() (int32, error) {
@@ -58,11 +68,20 @@ func (r *Reader) Byte() (byte, error) {
 }
 
 func (r *Reader) TagBuffer() TagBuffer {
+	r.Byte()
 	return TagBuffer{}
 }
 
-func (r *Reader) VarInt() (uint32, error) {
+func (r *Reader) UVarInt() (uint32, error) {
 	uvi, err := bytesToUvarint(r.r)
+	if err != nil {
+		return 0, err
+	}
+	return uvi, nil
+}
+
+func (r *Reader) SVarInt() (int32, error) {
+	uvi, err := bytesToSvarint(r.r)
 	if err != nil {
 		return 0, err
 	}
@@ -80,13 +99,59 @@ func (r *Reader) CompactString() (string, error) {
 		return "", nil // null
 	}
 
-	buf := make([]byte, uvi)
+	buf := make([]byte, uvi-1)
 
 	_, err = io.ReadFull(r.r, buf[:])
 	if err != nil {
 		return "", err
 	}
 	return string(buf), nil
+}
+
+func (r *Reader) CompactArrayInt32() ([]int32, error) {
+	lengthPlusOne, err := r.UVarInt()
+	if err != nil {
+		return []int32{}, fmt.Errorf("Error reading compact array inn32, %w", err)
+	}
+	buf := make([]int32, lengthPlusOne-1)
+	for i := range lengthPlusOne - 1 {
+		buf[i], err = r.Int32()
+		if err != nil {
+			return []int32{}, fmt.Errorf("Error reading compact array int32, %w", err)
+		}
+	}
+	return buf, nil
+}
+
+func (r *Reader) CompactArrayUUID() ([]UUID, error) {
+	lengthPlusOne, err := r.UVarInt()
+	if err != nil {
+		return []UUID{}, fmt.Errorf("Error reading compact array uuid, %w", err)
+	}
+	buf := make([]UUID, lengthPlusOne-1)
+	for i := range lengthPlusOne - 1 {
+		buf[i], err = r.UUID()
+		if err != nil {
+			return []UUID{}, fmt.Errorf("Error reading compact array uuid %w", err)
+		}
+	}
+	return buf, nil
+}
+
+func (r *Reader) CompactArrayTopics() ([]Topic, error) {
+	lengthPlusOne, err := r.UVarInt()
+	if lengthPlusOne == 0 {
+		return []Topic{}, errors.New("Error reading compact array topics: lengthplusone == 0")
+	}
+	if err != nil {
+		return []Topic{}, fmt.Errorf("Error reading compact array topics %w", err)
+	}
+	buf := make([]Topic, lengthPlusOne-1)
+
+	for i := range lengthPlusOne - 1 {
+		buf[i].decode(r)
+	}
+	return buf, nil
 }
 
 func (r *Reader) Bool() (bool, error) {
@@ -101,6 +166,15 @@ func (r *Reader) Bool() (bool, error) {
 	}
 }
 
+func (r *Reader) UUID() ([16]byte, error) {
+	var buf [16]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return [16]byte{}, fmt.Errorf("Error reading UUID: %w", err)
+	}
+	return buf, nil
+}
+
 // func (r *Reader) CompactString() string {
 // 	lengthPlusOne := uint8(r.Byte())
 // 	s := ""
@@ -109,6 +183,18 @@ func (r *Reader) Bool() (bool, error) {
 // 	}
 // 	return s
 // }
+
+func BytesToInt64(buf []byte) int64 {
+	i := int64(buf[0])<<56 | // if we do int64(buf[0])<<24), the first byte will be taken as the sign bit
+		int64(buf[1])<<48 |
+		int64(buf[2])<<40 |
+		int64(buf[3])<<32 |
+		int64(buf[4])<<24 |
+		int64(buf[5])<<16 |
+		int64(buf[6])<<8 |
+		int64(buf[7])
+	return i
+}
 
 func BytesToInt32(buf []byte) int32 {
 	i := int32(buf[0])<<24 | // if we do int32(buf[0])<<24), the first byte will be taken as the sign bit
@@ -152,7 +238,6 @@ func (w *Writer) Int8(n int8) {
 
 func (w *Writer) UvarI(n uint32) {
 	w.buf = append(w.buf, uvarintToBytes(n)...)
-	fmt.Println(uvarintToBytes(n), "****")
 }
 
 func (w *Writer) ApiKeys(keys []ApiKey) {
@@ -245,6 +330,7 @@ func bytesToUvarint(r *bufio.Reader) (uint32, error) {
 			break
 		}
 		b, err := r.ReadByte()
+
 		if err != nil {
 			return 0, err
 		}
@@ -258,4 +344,24 @@ func bytesToUvarint(r *bufio.Reader) (uint32, error) {
 		counter++
 	}
 	return i, nil
+}
+
+func bytesToSvarint(r *bufio.Reader) (int32, error) {
+
+	uInt, err := bytesToUvarint(r)
+	if err != nil {
+		return -1, fmt.Errorf("Error bytes to signed var int: %w", err)
+	}
+	var sInt int32
+	if uInt%2 == 0 {
+		sInt = int32(uInt) / 2
+	} else {
+		sInt = -(int32(uInt+1) / 2)
+	}
+	return sInt, nil
+}
+
+func (r *Reader) Skip(n int32) error {
+	_, err := io.CopyN(io.Discard, r.r, int64(n))
+	return err
 }

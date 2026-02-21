@@ -113,6 +113,40 @@ func TestBytesToUvarint(t *testing.T) {
 	}
 }
 
+func TestBytesToSvarint(t *testing.T) {
+	tests := []struct {
+		name      string
+		testCase  []byte
+		expResult int32
+	}{
+		{
+			name:      "-1",
+			testCase:  []byte{1},
+			expResult: -1,
+		},
+		{
+			name:      "160",
+			testCase:  []byte{128, 1},
+			expResult: 64,
+		},
+		{
+			name:      "1",
+			testCase:  []byte{2},
+			expResult: 1,
+		},
+	}
+
+	for i := range tests {
+		tt := tests[i]
+		t.Run(tt.name, func(t *testing.T) {
+			r := bufio.NewReader(bytes.NewReader(tt.testCase))
+			newint, err := bytesToSvarint(r)
+			require.NoError(t, err)
+			require.Equal(t, tt.expResult, newint)
+		})
+	}
+}
+
 func TestCompactString(t *testing.T) {
 	tests := []struct {
 		name      string
