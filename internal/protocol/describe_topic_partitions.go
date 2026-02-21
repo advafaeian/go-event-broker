@@ -9,13 +9,20 @@ type DescribeTopicPartitionsRequest struct {
 	TagBuffer              TagBuffer
 }
 
-func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) {
+func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) error {
+	var err error
 
-	req.Topics = red.Topics()
+	if req.Topics, err = red.CompactArrayTopics(); err != nil {
+		return err
+	}
+	if req.ResponsePartitionLimit, err = red.Int32(); err != nil {
+		return err
+	}
 
-	req.ResponsePartitionLimit = red.Int32()
-
-	cursor := red.Int8()
+	cursor, err := red.Int8()
+	if err != nil {
+		return err
+	}
 
 	if cursor == -1 {
 		req.Cursor = nil
@@ -24,18 +31,55 @@ func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) {
 	}
 
 	req.TagBuffer = red.TagBuffer()
+	return nil
 }
 
-type TopicID [16]byte
+type Partition struct {
+	ErrorCode              int16
+	PartitionIndex         int32
+	LeaderId               int32
+	LeaderEpoch            int32
+	ReplicaNodes           []int32
+	IsrNodes               []int32
+	EligibleLeaderReplicas []int32
+	LastKnownElr           []int32
+	OfflineReplicas        []int32
+	TagBuffer              TagBuffer
+}
 
-type Partition struct{}
+func (w *Writer) CompactArrayInt32(arr []int32) {
+	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
+	for i := range arr {
+		w.Int32(arr[i])
+	}
+}
+
+func (p *Partition) encode(w *Writer) {
+	w.Int16(p.ErrorCode)
+	w.Int32(p.PartitionIndex)
+	w.Int32(p.LeaderId)
+	w.Int32(p.LeaderEpoch)
+	w.CompactArrayInt32(p.ReplicaNodes)
+	w.CompactArrayInt32(p.IsrNodes)
+	w.CompactArrayInt32(p.EligibleLeaderReplicas)
+	w.CompactArrayInt32(p.LastKnownElr)
+	w.CompactArrayInt32(p.OfflineReplicas)
+	w.TagBuffer(p.TagBuffer)
+}
+
+func (w *Writer) CompactArrayPartitions(arr []Partition) {
+	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
+	for i := range arr {
+		arr[i].encode(w)
+	}
+}
 
 type Topic struct {
 	ErrorCode            int16
 	TopicName            string
-	TopicID              TopicID
-	Partitions           []Partition
+	TopicID              UUID
 	IsInternal           bool
+	Partitions           []Partition
 	AuthorizedOperations int32
 	TagBuffer            TagBuffer
 }
@@ -44,23 +88,20 @@ func (t *Topic) encode(w *Writer) {
 	w.Int16(t.ErrorCode)
 	w.CompactString(t.TopicName)
 	w.append(t.TopicID[:])
-	w.PartitionsArray(t.Partitions)
 	w.Bool(t.IsInternal)
+	w.CompactArrayPartitions(t.Partitions)
 	w.Int32(t.AuthorizedOperations)
 	w.TagBuffer(t.TagBuffer)
 }
-func (t *Topic) decode(r *Reader) {
-	t.TopicName = r.CompactString()
-	t.TagBuffer = r.TagBuffer()
-}
 
-func (r *Reader) Topics() []Topic {
-	lengthPlusOne := r.VarInt()
-	topics := make([]Topic, lengthPlusOne-1)
-	for i := range topics {
-		topics[i].decode(r)
+func (t *Topic) decode(r *Reader) error {
+	var err error
+	if t.TopicName, err = r.CompactString(); err != nil {
+		return err
 	}
-	return topics
+	t.TagBuffer = r.TagBuffer()
+
+	return nil
 }
 
 type DescribeTopicPartitionsResponse struct {

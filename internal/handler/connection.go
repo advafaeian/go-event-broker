@@ -1,13 +1,15 @@
 package handler
 
 import (
+	"advafaeian/go-event-broker/internal/metadata"
 	"advafaeian/go-event-broker/internal/protocol"
+
 	"io"
 	"log"
 	"net"
 )
 
-func HandleConnection(conn net.Conn) {
+func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 	defer conn.Close()
 	for {
 		var sizeBuf = make([]byte, 4)
@@ -59,20 +61,46 @@ func HandleConnection(conn net.Conn) {
 
 			req := protocol.DescribeTopicPartitionsRequest{}
 
-			req.Decode(red)
-			response := protocol.DescribeTopicPartitionsResponse{
-				Header: ResponseHeader,
-				Topics: []protocol.Topic{
-					{
-						ErrorCode:  3,
-						TopicName:  req.Topics[0].TopicName,
-						TopicID:    protocol.TopicID(make([]byte, 16)),
-						IsInternal: false,
-						Partitions: []protocol.Partition{},
-					},
-				},
-				NextCursor: nil,
+			err := req.Decode(red)
+			if err != nil {
+				log.Printf("Error decoding the request header: %v", err)
 			}
+			reqTopicName := req.Topics[0].TopicName
+
+			response := protocol.DescribeTopicPartitionsResponse{}
+
+			topicData, err := metadata.Get(reqTopicName)
+
+			if err != nil {
+				response = protocol.DescribeTopicPartitionsResponse{
+					Header: ResponseHeader,
+					Topics: []protocol.Topic{
+						{
+							ErrorCode:  3,
+							TopicName:  reqTopicName,
+							TopicID:    protocol.UUID(make([]byte, 16)),
+							IsInternal: false,
+							Partitions: []protocol.Partition{},
+						},
+					},
+					NextCursor: nil,
+				}
+			} else {
+				response = protocol.DescribeTopicPartitionsResponse{
+					Header: ResponseHeader,
+					Topics: []protocol.Topic{
+						{
+							ErrorCode:  0,
+							TopicName:  topicData.TopicName,
+							TopicID:    topicData.TopicID,
+							IsInternal: false,
+							Partitions: topicData.Partitions,
+						},
+					},
+					NextCursor: nil,
+				}
+			}
+
 			response.Encode(w)
 			_, err = conn.Write(w.Bytes())
 		}
