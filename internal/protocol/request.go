@@ -11,13 +11,31 @@ type RequestHeader struct {
 }
 
 func (req *RequestHeader) Decode(red *Reader) error {
-	req.RequestApiKey = red.Int16()
-	req.RequestApiVersion = red.Int16()
-	req.CorrelationId = red.Int32()
-	ClientIDLength := red.Int16()
-	for range ClientIDLength {
-		req.ClientID += string(red.Byte())
+	var err error
+
+	if req.RequestApiKey, err = red.Int16(); err != nil {
+		return err
 	}
+	if req.RequestApiVersion, err = red.Int16(); err != nil {
+		return err
+	}
+	if req.CorrelationId, err = red.Int32(); err != nil {
+		return err
+	}
+
+	clientIDLength, err := red.Int16()
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < int(clientIDLength); i++ {
+		b, err := red.Byte()
+		if err != nil {
+			return err
+		}
+		req.ClientID += string(b)
+	}
+
 	req.TagBuffer = red.TagBuffer()
 	return nil
 }
