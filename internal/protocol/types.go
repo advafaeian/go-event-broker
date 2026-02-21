@@ -8,3 +8,5 @@ const (
 type TaggedField struct{}
 
 type TagBuffer []TaggedField
+
+type UUID [16]byte
