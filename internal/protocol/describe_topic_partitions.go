@@ -67,13 +67,6 @@ func (p *Partition) encode(w *Writer) {
 	w.TagBuffer(p.TagBuffer)
 }
 
-func (w *Writer) CompactArrayPartitions(arr []Partition) {
-	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
-	for i := range arr {
-		arr[i].encode(w)
-	}
-}
-
 type Topic struct {
 	ErrorCode            int16
 	TopicName            string
@@ -116,21 +109,11 @@ func (r *DescribeTopicPartitionsResponse) Encode(w *Writer) {
 	r.Header.Encode(w, 1) // version 1
 
 	w.Int32(r.ThrottleMs)
-	w.Topics(r.Topics)
+	w.CompactArrayTopics(r.Topics)
 
 	w.Cursor(r.NextCursor)
 
 	w.TagBuffer(r.TagBuffer)
-}
-
-func (w *Writer) Topics(topics []Topic) {
-	sizePlusOne := uint32(len(topics)) + 1
-
-	w.UvarI(sizePlusOne)
-
-	for _, t := range topics {
-		t.encode(w)
-	}
 }
 
 func (w *Writer) Cursor(c Cursor) {

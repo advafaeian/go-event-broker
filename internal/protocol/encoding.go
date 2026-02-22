@@ -123,6 +123,13 @@ func (r *Reader) CompactArrayInt32() ([]int32, error) {
 	return buf, nil
 }
 
+func (w *Writer) CompactArrayPartitions(arr []Partition) {
+	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
+	for i := range arr {
+		arr[i].encode(w)
+	}
+}
+
 func (r *Reader) CompactArrayUUID() ([]UUID, error) {
 	lengthPlusOne, err := r.UVarInt()
 	if err != nil {
@@ -279,6 +286,16 @@ func (w *Writer) Bool(b bool) {
 
 func (w *Writer) append(bytes []byte) {
 	w.buf = append(w.buf, bytes...)
+}
+
+func (w *Writer) CompactArrayTopics(topics []Topic) {
+	sizePlusOne := uint32(len(topics)) + 1
+
+	w.UvarI(sizePlusOne)
+
+	for _, t := range topics {
+		t.encode(w)
+	}
 }
 
 func Int32ToBytes(n int32) []byte {
