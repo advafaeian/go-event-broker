@@ -136,9 +136,8 @@ func (l *MetadataLoader) Load() error {
 					return fmt.Errorf("Error reading metadata partition leader epoch %w", err)
 				}
 
-				r.Int32() // Partition Epoch
-				r.CompactArrayUUID()
-				r.UVarInt() // Length of Directories array and  Directories Array
+				r.Int32()            // Partition Epoch
+				r.CompactArrayUUID() // Directories Array
 
 				part := protocol.Partition{
 					PartitionIndex: partitionID,
