@@ -1,10 +1,5 @@
 package protocol
 
-var SupportedApiKeys = []ApiKey{
-	{ApiKey: ApiVersionsKey, MinVersion: 0, MaxVersion: 4},
-	{ApiKey: DescribeTopicPartitionsKey, MinVersion: 0, MaxVersion: 0},
-}
-
 type ApiKey struct {
 	ApiKey     int16
 	MinVersion int16
