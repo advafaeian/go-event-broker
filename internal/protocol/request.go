@@ -1,5 +1,7 @@
 package protocol
 
+import "errors"
+
 type ClientID string
 
 type RequestHeader struct {
@@ -41,7 +43,14 @@ func (req *RequestHeader) Decode(red *Reader) error {
 }
 
 func (r *RequestHeader) Validate() error {
-	if r.RequestApiVersion > 5 {
+
+	versionRange, ok := SupportedVersions[r.RequestApiKey]
+
+	if !ok {
+		return errors.New("Api key is not valid")
+	}
+
+	if r.RequestApiVersion < versionRange.Min || r.RequestApiVersion > versionRange.Max {
 		return ErrUnsupportedVersion
 	}
 	return nil
