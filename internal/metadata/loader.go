@@ -34,8 +34,6 @@ func (l *MetadataLoader) Load() error {
 	// 	return err
 	// }
 
-	var lastTopic protocol.Topic
-
 	f, err := os.Open(l.Path)
 	if err != nil {
 		log.Println("metadata file not found, starting with empty metadata")
@@ -43,6 +41,9 @@ func (l *MetadataLoader) Load() error {
 	defer f.Close()
 
 	r := protocol.NewReader(f)
+
+	var lastTopic protocol.Topic
+
 	for { // iterating batches
 		_, err := r.Int64() //  Base Offset
 		if err != nil {
@@ -63,7 +64,6 @@ func (l *MetadataLoader) Load() error {
 		)
 
 		recordsLength, _ := r.Int32()
-
 		for range recordsLength {
 			r.SVarInt()                   // length
 			r.Skip(1)                     //Attributes
@@ -93,6 +93,7 @@ func (l *MetadataLoader) Load() error {
 				r.CompactString() // Name length and Name
 				r.Skip(2)         // Feature Level
 			case 2:
+				lastTopic = protocol.Topic{}
 				topicName, err := r.CompactString()
 				if err != nil {
 					return fmt.Errorf("failed to read Topic Record: %w", err)
@@ -152,7 +153,9 @@ func (l *MetadataLoader) Load() error {
 			r.UVarInt() // Tagged Fields Count
 			r.UVarInt() // Headers Array Count
 		}
+		if lastTopic.TopicName != "" {
+			l.Topics[lastTopic.TopicName] = lastTopic
+		}
 	}
-	l.Topics[lastTopic.TopicName] = lastTopic
 	return nil
 }
