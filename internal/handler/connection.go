@@ -3,6 +3,8 @@ package handler
 import (
 	"advafaeian/go-event-broker/internal/metadata"
 	"advafaeian/go-event-broker/internal/protocol"
+	"slices"
+	"strings"
 
 	"io"
 	"log"
@@ -10,7 +12,9 @@ import (
 )
 
 func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
+
 	defer conn.Close()
+
 	for {
 		var sizeBuf = make([]byte, 4)
 		_, err := io.ReadFull(conn, sizeBuf)
@@ -55,8 +59,6 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 
 			response.Encode(w)
 
-			_, err = conn.Write(w.Bytes())
-
 		case protocol.DescribeTopicPartitionsKey:
 
 			req := protocol.DescribeTopicPartitionsRequest{}
@@ -65,46 +67,43 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 			if err != nil {
 				log.Printf("Error decoding the request header: %v", err)
 			}
-			reqTopicName := req.Topics[0].TopicName
 
-			response := protocol.DescribeTopicPartitionsResponse{}
-
-			topicData, err := metadata.Get(reqTopicName)
-
-			if err != nil {
-				response = protocol.DescribeTopicPartitionsResponse{
-					Header: ResponseHeader,
-					Topics: []protocol.Topic{
-						{
-							ErrorCode:  3,
-							TopicName:  reqTopicName,
-							TopicID:    protocol.UUID(make([]byte, 16)),
-							IsInternal: false,
-							Partitions: []protocol.Partition{},
-						},
-					},
-					NextCursor: nil,
-				}
-			} else {
-				response = protocol.DescribeTopicPartitionsResponse{
-					Header: ResponseHeader,
-					Topics: []protocol.Topic{
-						{
-							ErrorCode:  0,
-							TopicName:  topicData.TopicName,
-							TopicID:    topicData.TopicID,
-							IsInternal: false,
-							Partitions: topicData.Partitions,
-						},
-					},
-					NextCursor: nil,
-				}
+			response := protocol.DescribeTopicPartitionsResponse{
+				Header:     ResponseHeader,
+				NextCursor: nil,
 			}
+			slices.SortFunc(req.Topics, func(a, b protocol.Topic) int {
+				return strings.Compare(a.TopicName, b.TopicName)
+			})
 
+			for _, t := range req.Topics {
+
+				topicData, err := metadata.Get(t.TopicName)
+
+				var topic protocol.Topic
+
+				if err != nil {
+					topic = protocol.Topic{
+						ErrorCode:  3,
+						TopicName:  t.TopicName,
+						TopicID:    protocol.UUID(make([]byte, 16)),
+						IsInternal: false,
+						Partitions: []protocol.Partition{},
+					}
+				} else {
+					topic = protocol.Topic{
+						ErrorCode:  0,
+						TopicName:  topicData.TopicName,
+						TopicID:    topicData.TopicID,
+						IsInternal: false,
+						Partitions: topicData.Partitions,
+					}
+				}
+				response.Topics = append(response.Topics, topic)
+			}
 			response.Encode(w)
-			_, err = conn.Write(w.Bytes())
 		}
-
+		_, err = conn.Write(w.Bytes())
 		if err != nil {
 			log.Printf("Error writing response: %v", err)
 			return
