@@ -123,13 +123,6 @@ func (r *Reader) CompactArrayInt32() ([]int32, error) {
 	return buf, nil
 }
 
-func (w *Writer) CompactArrayPartitions(arr []Partition) {
-	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
-	for i := range arr {
-		arr[i].encode(w)
-	}
-}
-
 func (r *Reader) CompactArrayUUID() ([]UUID, error) {
 	lengthPlusOne, err := r.UVarInt()
 	if err != nil {
@@ -180,6 +173,16 @@ func (r *Reader) UUID() ([16]byte, error) {
 		return [16]byte{}, fmt.Errorf("Error reading UUID: %w", err)
 	}
 	return buf, nil
+}
+
+func (t *Topic) decode(r *Reader) error {
+	var err error
+	if t.TopicName, err = r.CompactString(); err != nil {
+		return err
+	}
+	t.TagBuffer = r.TagBuffer()
+
+	return nil
 }
 
 // func (r *Reader) CompactString() string {
@@ -276,16 +279,11 @@ func (w *Writer) CompactString(s string) {
 	w.buf = append(w.buf, s...)
 }
 
-func (w *Writer) Bool(b bool) {
-	if b {
-		w.Int8(1)
-	} else {
-		w.Int8(0)
+func (w *Writer) CompactArrayInt32(arr []int32) {
+	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
+	for i := range arr {
+		w.Int32(arr[i])
 	}
-}
-
-func (w *Writer) append(bytes []byte) {
-	w.buf = append(w.buf, bytes...)
 }
 
 func (w *Writer) CompactArrayTopics(topics []Topic) {
@@ -296,6 +294,48 @@ func (w *Writer) CompactArrayTopics(topics []Topic) {
 	for _, t := range topics {
 		t.encode(w)
 	}
+}
+
+func (w *Writer) CompactArrayPartitions(arr []Partition) {
+	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
+	for i := range arr {
+		arr[i].encode(w)
+	}
+}
+
+func (p *Partition) encode(w *Writer) {
+	w.Int16(p.ErrorCode)
+	w.Int32(p.PartitionIndex)
+	w.Int32(p.LeaderId)
+	w.Int32(p.LeaderEpoch)
+	w.CompactArrayInt32(p.ReplicaNodes)
+	w.CompactArrayInt32(p.IsrNodes)
+	w.CompactArrayInt32(p.EligibleLeaderReplicas)
+	w.CompactArrayInt32(p.LastKnownElr)
+	w.CompactArrayInt32(p.OfflineReplicas)
+	w.TagBuffer(p.TagBuffer)
+}
+
+func (t *Topic) encode(w *Writer) {
+	w.Int16(t.ErrorCode)
+	w.CompactString(t.TopicName)
+	w.append(t.TopicID[:])
+	w.Bool(t.IsInternal)
+	w.CompactArrayPartitions(t.Partitions)
+	w.Int32(t.AuthorizedOperations)
+	w.TagBuffer(t.TagBuffer)
+}
+
+func (w *Writer) Bool(b bool) {
+	if b {
+		w.Int8(1)
+	} else {
+		w.Int8(0)
+	}
+}
+
+func (w *Writer) append(bytes []byte) {
+	w.buf = append(w.buf, bytes...)
 }
 
 func Int32ToBytes(n int32) []byte {
