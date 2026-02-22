@@ -25,7 +25,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 - 🟢️ List for an unknown topic  
 - 🟢️ List for a single partition  
 - 🟢️ List for multiple partitions  
-- ⚪️ List for multiple topics  
+- 🟢️ List for multiple topics  
 
 ### 📦 Consuming Messages
 - ⚪️ Include `Fetch` in `ApiVersions`  
