@@ -49,6 +49,14 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 		ResponseHeader := protocol.ResponseHeader{CorrelationID: requestHeader.CorrelationId}
 
 		switch requestHeader.RequestApiKey {
+		case protocol.FetchKey:
+			response := protocol.FetchResponse{
+				Header:    ResponseHeader,
+				ErrorCode: pErrCode,
+			}
+
+			response.Encode(w)
+
 		case protocol.ApiVersionsKey:
 
 			response := protocol.ApiVersionsResponse{
