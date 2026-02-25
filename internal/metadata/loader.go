@@ -8,21 +8,23 @@ import (
 )
 
 type MetadataLoader struct {
-	Path   string
-	Topics map[string]protocol.Topic
+	Path       string
+	Topics     map[string]*protocol.Topic
+	TopicsByID map[protocol.UUID]*protocol.Topic
 }
 
 func NewMetadataLoader(path string) *MetadataLoader {
 	return &MetadataLoader{
-		Path:   path,
-		Topics: map[string]protocol.Topic{},
+		Path:       path,
+		Topics:     map[string]*protocol.Topic{},
+		TopicsByID: map[protocol.UUID]*protocol.Topic{},
 	}
 }
 
-func (l *MetadataLoader) Get(name string) (protocol.Topic, error) {
+func (l *MetadataLoader) Get(name string) (*protocol.Topic, error) {
 	topic, ok := l.Topics[name]
 	if !ok {
-		return protocol.Topic{}, fmt.Errorf("Error getting topic %s from metadata", name)
+		return nil, fmt.Errorf("Error getting topic %s from metadata", name)
 	}
 	return topic, nil
 }
@@ -42,7 +44,7 @@ func (l *MetadataLoader) Load() error {
 
 	r := protocol.NewReader(f)
 
-	var lastTopic protocol.Topic
+	lastTopic := &protocol.Topic{}
 
 	for { // iterating batches
 		_, err := r.Int64() //  Base Offset
@@ -93,7 +95,7 @@ func (l *MetadataLoader) Load() error {
 				r.CompactString() // Name length and Name
 				r.Skip(2)         // Feature Level
 			case 2:
-				lastTopic = protocol.Topic{}
+				lastTopic = &protocol.Topic{}
 				topicName, err := r.CompactString()
 				if err != nil {
 					return fmt.Errorf("failed to read Topic Record: %w", err)
@@ -155,6 +157,7 @@ func (l *MetadataLoader) Load() error {
 		}
 		if lastTopic.TopicName != "" {
 			l.Topics[lastTopic.TopicName] = lastTopic
+			l.TopicsByID[lastTopic.TopicID] = lastTopic
 		}
 	}
 	return nil
