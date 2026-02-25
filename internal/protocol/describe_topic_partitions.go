@@ -30,7 +30,9 @@ func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) error {
 		req.Cursor = nil
 	}
 
-	req.TagBuffer = red.TagBuffer()
+	if req.TagBuffer, err = red.TagBuffer(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -46,7 +48,7 @@ func (r *DescribeTopicPartitionsResponse) Encode(w *Writer) {
 	r.Header.Encode(w, 1) // version 1
 
 	w.Int32(r.ThrottleMs)
-	w.CompactArrayTopics(r.Topics)
+	WriteCompactArray(w, r.Topics)
 
 	w.Cursor(r.NextCursor)
 

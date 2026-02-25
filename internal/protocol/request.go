@@ -38,7 +38,9 @@ func (req *RequestHeader) Decode(red *Reader) error {
 		req.ClientID += string(b)
 	}
 
-	req.TagBuffer = red.TagBuffer()
+	if req.TagBuffer, err = red.TagBuffer(); err != nil {
+		return err
+	}
 	return nil
 }
 

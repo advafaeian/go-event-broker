@@ -9,7 +9,8 @@ import (
 )
 
 type Reader struct {
-	r *bufio.Reader
+	r       *bufio.Reader
+	Version int16
 }
 
 func NewReader(rd io.Reader) *Reader {
@@ -67,9 +68,9 @@ func (r *Reader) Byte() (byte, error) {
 	return buf[0], nil
 }
 
-func (r *Reader) TagBuffer() TagBuffer {
+func (r *Reader) TagBuffer() (TagBuffer, error) {
 	r.Byte()
-	return TagBuffer{}
+	return TagBuffer{}, nil
 }
 
 func (r *Reader) UVarInt() (uint32, error) {
@@ -154,6 +155,38 @@ func (r *Reader) CompactArrayTopics() ([]Topic, error) {
 	return buf, nil
 }
 
+func (r *Reader) CompactArrayFetchTopics() ([]FetchRequestTopic, error) {
+	lengthPlusOne, err := r.UVarInt()
+	if lengthPlusOne == 0 {
+		return []FetchRequestTopic{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
+	}
+	if err != nil {
+		return []FetchRequestTopic{}, fmt.Errorf("Error reading compact array partition %w", err)
+	}
+	buf := make([]FetchRequestTopic, lengthPlusOne-1)
+
+	for i := range lengthPlusOne - 1 {
+		buf[i].decode(r)
+	}
+	return buf, nil
+}
+
+func (r *Reader) CompactArrayFetchPartitions() ([]FetchRequestPartition, error) {
+	lengthPlusOne, err := r.UVarInt()
+	if lengthPlusOne == 0 {
+		return []FetchRequestPartition{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
+	}
+	if err != nil {
+		return []FetchRequestPartition{}, fmt.Errorf("Error reading compact array partition %w", err)
+	}
+	buf := make([]FetchRequestPartition, lengthPlusOne-1)
+
+	for i := range lengthPlusOne - 1 {
+		buf[i].decode(r)
+	}
+	return buf, nil
+}
+
 func (r *Reader) Bool() (bool, error) {
 	b, err := r.r.ReadByte()
 	if err != nil {
@@ -177,11 +210,71 @@ func (r *Reader) UUID() ([16]byte, error) {
 
 func (t *Topic) decode(r *Reader) error {
 	var err error
-	if t.TopicName, err = r.CompactString(); err != nil {
+	if r.Version >= 13 {
+		if t.TopicID, err = r.UUID(); err != nil {
+			return err
+		}
+	} else {
+		if t.TopicName, err = r.CompactString(); err != nil {
+			return err
+		}
+	}
+	if t.TagBuffer, err = r.TagBuffer(); err != nil {
+		return fmt.Errorf("Error decoding topic: %w", err)
+	}
+
+	return nil
+}
+
+func (t *FetchRequestTopic) decode(r *Reader) error {
+	var err error
+
+	if t.TopicID, err = r.UUID(); err != nil {
 		return err
 	}
-	t.TagBuffer = r.TagBuffer()
 
+	if t.Partitions, err = r.CompactArrayFetchPartitions(); err != nil {
+		return fmt.Errorf("Error decoding topic: %w", err)
+	}
+
+	if t.TagBuffer, err = r.TagBuffer(); err != nil {
+		return fmt.Errorf("Error decoding topic: %w", err)
+	}
+
+	return nil
+}
+
+func (p *FetchRequestPartition) decode(r *Reader) error {
+
+	var err error
+
+	if p.ID, err = r.Int32(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
+
+	if p.CurrentLeaderEpoch, err = r.Int32(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
+
+	if p.FetchOffset, err = r.Int64(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
+
+	if p.LastFetchedOffset, err = r.Int64(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
+
+	if p.LogStartOffset, err = r.Int32(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
+
+	if p.PartitionMaxBytes, err = r.Int32(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
+
+	if p.TagBuffer, err = r.TagBuffer(); err != nil {
+		return fmt.Errorf("Error decoding fetch request partition: %w", err)
+	}
 	return nil
 }
 
@@ -232,6 +325,10 @@ func NewWriter() *Writer {
 	buf := make([]byte, 4, 128)
 	buf[0] = 0
 	return &Writer{buf: buf}
+}
+
+func (w *Writer) Int64(n int64) {
+	w.buf = append(w.buf, Int64ToBytes(n)...)
 }
 
 func (w *Writer) Int32(n int32) {
@@ -286,24 +383,20 @@ func (w *Writer) CompactArrayInt32(arr []int32) {
 	}
 }
 
-func (w *Writer) CompactArrayTopics(topics []Topic) {
-	sizePlusOne := uint32(len(topics)) + 1
+type Encodable[T any] interface {
+	*T
+	encode(w *Writer) error
+}
 
+func WriteCompactArray[T any, PT Encodable[T]](w *Writer, items []T) {
+	sizePlusOne := uint32(len(items)) + 1
 	w.UvarI(sizePlusOne)
-
-	for _, t := range topics {
-		t.encode(w)
+	for i := range items {
+		PT(&items[i]).encode(w)
 	}
 }
 
-func (w *Writer) CompactArrayPartitions(arr []Partition) {
-	w.buf = append(w.buf, uvarintToBytes(uint32(len(arr)+1))...)
-	for i := range arr {
-		arr[i].encode(w)
-	}
-}
-
-func (p *Partition) encode(w *Writer) {
+func (p *Partition) encode(w *Writer) error {
 	w.Int16(p.ErrorCode)
 	w.Int32(p.PartitionIndex)
 	w.Int32(p.LeaderId)
@@ -314,16 +407,18 @@ func (p *Partition) encode(w *Writer) {
 	w.CompactArrayInt32(p.LastKnownElr)
 	w.CompactArrayInt32(p.OfflineReplicas)
 	w.TagBuffer(p.TagBuffer)
+	return nil
 }
 
-func (t *Topic) encode(w *Writer) {
+func (t *Topic) encode(w *Writer) error {
 	w.Int16(t.ErrorCode)
 	w.CompactString(t.TopicName)
 	w.append(t.TopicID[:])
 	w.Bool(t.IsInternal)
-	w.CompactArrayPartitions(t.Partitions)
+	WriteCompactArray(w, t.Partitions)
 	w.Int32(t.AuthorizedOperations)
 	w.TagBuffer(t.TagBuffer)
+	return nil
 }
 
 func (w *Writer) Bool(b bool) {
@@ -336,6 +431,19 @@ func (w *Writer) Bool(b bool) {
 
 func (w *Writer) append(bytes []byte) {
 	w.buf = append(w.buf, bytes...)
+}
+
+func Int64ToBytes(n int64) []byte {
+	return []byte{
+		byte(n >> 56),
+		byte(n >> 48),
+		byte(n >> 40),
+		byte(n >> 32),
+		byte(n >> 24),
+		byte(n >> 16),
+		byte(n >> 8),
+		byte(n),
+	}
 }
 
 func Int32ToBytes(n int32) []byte {
