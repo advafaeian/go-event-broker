@@ -39,6 +39,8 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 			return
 		}
 
+		red.Version = requestHeader.RequestApiVersion
+
 		pErrCode := protocol.NoError
 		if err := requestHeader.Validate(); err != nil {
 			pErrCode = err.(*protocol.ProtocolError).Code
@@ -50,13 +52,7 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 
 		switch requestHeader.RequestApiKey {
 		case protocol.FetchKey:
-			response := protocol.FetchResponse{
-				Header:    ResponseHeader,
-				ErrorCode: pErrCode,
-			}
-
-			response.Encode(w)
-
+			HandleFetch(w, red, metadata, ResponseHeader, pErrCode)
 		case protocol.ApiVersionsKey:
 
 			response := protocol.ApiVersionsResponse{
@@ -96,7 +92,6 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 						TopicName:  t.TopicName,
 						TopicID:    protocol.UUID(make([]byte, 16)),
 						IsInternal: false,
-						Partitions: []protocol.Partition{},
 					}
 				} else {
 					topic = protocol.Topic{
