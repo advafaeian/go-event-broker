@@ -31,7 +31,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 - 🟢️ Include `Fetch` in `ApiVersions`  
 - 🟢️ Fetch with no topics  
 - 🟢️ Fetch with an unknown topic  
-- ⚪️ Fetch with an empty topic  
+- 🟢️ Fetch with an empty topic  
 - ⚪️ Fetch single message from disk  
 - ⚪️ Fetch multiple messages from disk  
 
