@@ -12,7 +12,7 @@ type DescribeTopicPartitionsRequest struct {
 func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) error {
 	var err error
 
-	if req.Topics, err = red.CompactArrayTopics(); err != nil {
+	if req.Topics, err = ReadCompactArray[Topic](red); err != nil {
 		return err
 	}
 	if req.ResponsePartitionLimit, err = red.Int32(); err != nil {

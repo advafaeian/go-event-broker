@@ -1,5 +1,7 @@
 package protocol
 
+import "fmt"
+
 const (
 	FetchKey                   int16 = 1
 	ApiVersionsKey             int16 = 18
@@ -20,6 +22,24 @@ type Topic struct {
 	Partitions           []Partition
 	AuthorizedOperations int32
 	TagBuffer            TagBuffer
+}
+
+func (t *Topic) decode(r *Reader) error {
+	var err error
+	if r.Version >= 13 {
+		if t.TopicID, err = r.UUID(); err != nil {
+			return err
+		}
+	} else {
+		if t.TopicName, err = r.CompactString(); err != nil {
+			return err
+		}
+	}
+	if t.TagBuffer, err = r.TagBuffer(); err != nil {
+		return fmt.Errorf("Error decoding topic: %w", err)
+	}
+
+	return nil
 }
 
 type Partition struct {

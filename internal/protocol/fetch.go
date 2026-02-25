@@ -150,11 +150,11 @@ func (r *FetchRequest) Decode(red *Reader) error {
 	if err != nil {
 		return fmt.Errorf("Error parsing fetch request SessionEpoch: %w", err)
 	}
-	r.Topics, err = red.CompactArrayFetchTopics()
+	r.Topics, err = ReadCompactArray[FetchRequestTopic](red)
 	if err != nil {
 		return fmt.Errorf("Error parsing fetch request Topics: %w", err)
 	}
-	r.ForgottenTopics, err = red.CompactArrayFetchTopics()
+	r.ForgottenTopics, err = ReadCompactArray[FetchRequestTopic](red)
 	if err != nil {
 		return fmt.Errorf("Error parsing fetch request ForgottenTopics: %w", err)
 	}

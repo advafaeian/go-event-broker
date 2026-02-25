@@ -139,53 +139,74 @@ func (r *Reader) CompactArrayUUID() ([]UUID, error) {
 	return buf, nil
 }
 
-func (r *Reader) CompactArrayTopics() ([]Topic, error) {
+type Decodable[T any] interface {
+	*T
+	decode(*Reader) error
+}
+
+func ReadCompactArray[T any, PT Decodable[T]](r *Reader) ([]T, error) {
 	lengthPlusOne, err := r.UVarInt()
 	if lengthPlusOne == 0 {
-		return []Topic{}, errors.New("Error reading compact array topics: lengthplusone == 0")
+		return []T{}, errors.New("Error reading compact array topics: lengthplusone == 0")
 	}
 	if err != nil {
-		return []Topic{}, fmt.Errorf("Error reading compact array topics %w", err)
+		return []T{}, fmt.Errorf("Error reading compact array topics %w", err)
 	}
-	buf := make([]Topic, lengthPlusOne-1)
+	buf := make([]T, lengthPlusOne-1)
 
 	for i := range lengthPlusOne - 1 {
-		buf[i].decode(r)
+		PT(&buf[i]).decode(r)
 	}
 	return buf, nil
 }
 
-func (r *Reader) CompactArrayFetchTopics() ([]FetchRequestTopic, error) {
-	lengthPlusOne, err := r.UVarInt()
-	if lengthPlusOne == 0 {
-		return []FetchRequestTopic{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
-	}
-	if err != nil {
-		return []FetchRequestTopic{}, fmt.Errorf("Error reading compact array partition %w", err)
-	}
-	buf := make([]FetchRequestTopic, lengthPlusOne-1)
+// func (r *Reader) CompactArrayTopics() ([]Topic, error) {
+// 	lengthPlusOne, err := r.UVarInt()
+// 	if lengthPlusOne == 0 {
+// 		return []Topic{}, errors.New("Error reading compact array topics: lengthplusone == 0")
+// 	}
+// 	if err != nil {
+// 		return []Topic{}, fmt.Errorf("Error reading compact array topics %w", err)
+// 	}
+// 	buf := make([]Topic, lengthPlusOne-1)
 
-	for i := range lengthPlusOne - 1 {
-		buf[i].decode(r)
-	}
-	return buf, nil
-}
+// 	for i := range lengthPlusOne - 1 {
+// 		buf[i].decode(r)
+// 	}
+// 	return buf, nil
+// }
 
-func (r *Reader) CompactArrayFetchPartitions() ([]FetchRequestPartition, error) {
-	lengthPlusOne, err := r.UVarInt()
-	if lengthPlusOne == 0 {
-		return []FetchRequestPartition{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
-	}
-	if err != nil {
-		return []FetchRequestPartition{}, fmt.Errorf("Error reading compact array partition %w", err)
-	}
-	buf := make([]FetchRequestPartition, lengthPlusOne-1)
+// func (r *Reader) CompactArrayFetchTopics() ([]FetchRequestTopic, error) {
+// 	lengthPlusOne, err := r.UVarInt()
+// 	if lengthPlusOne == 0 {
+// 		return []FetchRequestTopic{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
+// 	}
+// 	if err != nil {
+// 		return []FetchRequestTopic{}, fmt.Errorf("Error reading compact array partition %w", err)
+// 	}
+// 	buf := make([]FetchRequestTopic, lengthPlusOne-1)
 
-	for i := range lengthPlusOne - 1 {
-		buf[i].decode(r)
-	}
-	return buf, nil
-}
+// 	for i := range lengthPlusOne - 1 {
+// 		buf[i].decode(r)
+// 	}
+// 	return buf, nil
+// }
+
+// func (r *Reader) CompactArrayFetchPartitions() ([]FetchRequestPartition, error) {
+// 	lengthPlusOne, err := r.UVarInt()
+// 	if lengthPlusOne == 0 {
+// 		return []FetchRequestPartition{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
+// 	}
+// 	if err != nil {
+// 		return []FetchRequestPartition{}, fmt.Errorf("Error reading compact array partition %w", err)
+// 	}
+// 	buf := make([]FetchRequestPartition, lengthPlusOne-1)
+
+// 	for i := range lengthPlusOne - 1 {
+// 		buf[i].decode(r)
+// 	}
+// 	return buf, nil
+// }
 
 func (r *Reader) Bool() (bool, error) {
 	b, err := r.r.ReadByte()
@@ -208,24 +229,6 @@ func (r *Reader) UUID() ([16]byte, error) {
 	return buf, nil
 }
 
-func (t *Topic) decode(r *Reader) error {
-	var err error
-	if r.Version >= 13 {
-		if t.TopicID, err = r.UUID(); err != nil {
-			return err
-		}
-	} else {
-		if t.TopicName, err = r.CompactString(); err != nil {
-			return err
-		}
-	}
-	if t.TagBuffer, err = r.TagBuffer(); err != nil {
-		return fmt.Errorf("Error decoding topic: %w", err)
-	}
-
-	return nil
-}
-
 func (t *FetchRequestTopic) decode(r *Reader) error {
 	var err error
 
@@ -233,7 +236,7 @@ func (t *FetchRequestTopic) decode(r *Reader) error {
 		return err
 	}
 
-	if t.Partitions, err = r.CompactArrayFetchPartitions(); err != nil {
+	if t.Partitions, err = ReadCompactArray[FetchRequestPartition](r); err != nil {
 		return fmt.Errorf("Error decoding topic: %w", err)
 	}
 
