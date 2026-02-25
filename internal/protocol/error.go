@@ -1,6 +1,7 @@
 package protocol
 
 const NoError = int16(0)
+const UnknownTopicID = int16(100)
 
 type ProtocolError struct {
 	Code    int16
