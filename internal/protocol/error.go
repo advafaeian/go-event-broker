@@ -12,12 +12,6 @@ func (pe *ProtocolError) Error() string {
 	return pe.Message
 }
 
-var SupportedApiKeys = []ApiKey{
-	{ApiKey: ApiVersionsKey, MinVersion: 0, MaxVersion: 4},
-	{ApiKey: DescribeTopicPartitionsKey, MinVersion: 0, MaxVersion: 0},
-	{ApiKey: FetchKey, MinVersion: 0, MaxVersion: 16},
-}
-
 type VersionRange struct {
 	Min int16
 	Max int16

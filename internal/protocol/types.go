@@ -3,6 +3,7 @@ package protocol
 import "fmt"
 
 const (
+	ProduceKey                 int16 = 0
 	FetchKey                   int16 = 1
 	ApiVersionsKey             int16 = 18
 	DescribeTopicPartitionsKey int16 = 75
