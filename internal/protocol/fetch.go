@@ -1,6 +1,8 @@
 package protocol
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type FetchResponse struct {
 	Header     ResponseHeader
@@ -28,13 +30,6 @@ func (at *AbortedTransaction) encode(w *Writer) error {
 	return nil
 }
 
-type RecordBatch struct {
-}
-
-func (at *RecordBatch) encode(w *Writer) error {
-	return nil
-}
-
 type FetchResponsePartition struct {
 	PartitionIndex       int32
 	ErrorCode            int16
@@ -43,7 +38,7 @@ type FetchResponsePartition struct {
 	LogStartOffset       int64
 	AbortedTransactions  []AbortedTransaction
 	PreferredReadReplica int32
-	RecordBatches        []RecordBatch
+	RecordBatches        []BatchRecords
 	TagBuffer            TagBuffer
 }
 
@@ -55,7 +50,15 @@ func (p *FetchResponsePartition) encode(w *Writer) error {
 	w.Int64(p.LogStartOffset)
 	WriteCompactArray(w, p.AbortedTransactions)
 	w.Int32(p.PreferredReadReplica)
-	WriteCompactArray(w, p.RecordBatches)
+
+	// records batchs writer
+	body := &Writer{}
+	for _, BatchRecords := range p.RecordBatches {
+		BatchRecords.encode(body)
+	}
+	w.UvarI(uint32(body.Len()) + 1) //byte size + 1
+	w.Write(body.RawBytes())
+
 	w.TagBuffer(p.TagBuffer)
 	return nil
 }

@@ -16,7 +16,7 @@ func convertPartitions(p []protocol.Partition) []protocol.FetchResponsePartition
 	return fp
 }
 
-func HandleFetch(w *protocol.Writer, r *protocol.Reader, metadata *metadata.MetadataLoader, rh protocol.ResponseHeader, errCode int16) error {
+func HandleFetch(w *protocol.Writer, r *protocol.Reader, metadataLoader *metadata.MetadataLoader, rh protocol.ResponseHeader, errCode int16) error {
 
 	response := protocol.FetchResponse{
 		Header:    rh,
@@ -32,7 +32,7 @@ func HandleFetch(w *protocol.Writer, r *protocol.Reader, metadata *metadata.Meta
 	}
 
 	for _, t := range req.Topics {
-		topic, ok := metadata.TopicsByID[t.TopicID]
+		topic, ok := metadataLoader.TopicsByID[t.TopicID]
 
 		var resTopic protocol.FetchResponseTopic
 
@@ -47,9 +47,22 @@ func HandleFetch(w *protocol.Writer, r *protocol.Reader, metadata *metadata.Meta
 				},
 			}
 		} else {
+			var partitions []protocol.FetchResponsePartition
+			for _, reqPartition := range t.Partitions {
+				recordBatches, err := metadata.LoadPartition(topic.TopicName, reqPartition.ID)
+
+				partition := protocol.FetchResponsePartition{
+					PartitionIndex: reqPartition.ID,
+					RecordBatches:  recordBatches,
+				}
+				if err != nil {
+					partition.ErrorCode = protocol.UnknownTopicID
+				}
+				partitions = append(partitions, partition)
+			}
 			resTopic = protocol.FetchResponseTopic{
 				TopicID:    t.TopicID,
-				Partitions: convertPartitions(topic.Partitions),
+				Partitions: partitions,
 			}
 		}
 

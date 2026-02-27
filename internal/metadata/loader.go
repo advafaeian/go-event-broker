@@ -8,16 +8,18 @@ import (
 )
 
 type MetadataLoader struct {
-	Path       string
-	Topics     map[string]*protocol.Topic
-	TopicsByID map[protocol.UUID]*protocol.Topic
+	Path         string
+	Topics       map[string]*protocol.Topic
+	TopicsByID   map[protocol.UUID]*protocol.Topic
+	BatchRecords []protocol.BatchRecords
 }
 
 func NewMetadataLoader(path string) *MetadataLoader {
 	return &MetadataLoader{
-		Path:       path,
-		Topics:     map[string]*protocol.Topic{},
-		TopicsByID: map[protocol.UUID]*protocol.Topic{},
+		Path:         path,
+		Topics:       map[string]*protocol.Topic{},
+		TopicsByID:   map[protocol.UUID]*protocol.Topic{},
+		BatchRecords: []protocol.BatchRecords{},
 	}
 }
 
@@ -25,6 +27,14 @@ func (l *MetadataLoader) Get(name string) (*protocol.Topic, error) {
 	topic, ok := l.Topics[name]
 	if !ok {
 		return nil, fmt.Errorf("Error getting topic %s from metadata", name)
+	}
+	return topic, nil
+}
+
+func (l *MetadataLoader) GetByUUID(uuid protocol.UUID) (*protocol.Topic, error) {
+	topic, ok := l.TopicsByID[uuid]
+	if !ok {
+		return nil, fmt.Errorf("Error getting topic %s from metadata", uuid)
 	}
 	return topic, nil
 }
@@ -47,60 +57,29 @@ func (l *MetadataLoader) Load() error {
 	lastTopic := &protocol.Topic{}
 
 	for { // iterating batches
-		_, err := r.Int64() //  Base Offset
-		if err != nil {
+		var batchRecord protocol.BatchRecords
+
+		if err := batchRecord.Decode(r); err != nil {
 			break
 		}
 
-		r.Int32()  // batch Length
-		r.Skip(4 + // Partition Leader Epoch
-			1 + // Magic Byte
-			4 + // CRC
-			2 + // Attributes
-			4 + // Last Offset Delta
-			8 + // Base Timestamp
-			8 + // Max Timestamp
-			8 + // Producer ID
-			2 + // Producer Epoch
-			4, // Base Sequence
-		)
+		for _, record := range batchRecord.Records {
+			valueReader := protocol.NewReaderFromBytes(record.Value)
 
-		recordsLength, _ := r.Int32()
-		for range recordsLength {
-			r.SVarInt()                   // length
-			r.Skip(1)                     //Attributes
-			r.SVarInt()                   // Timestamp Delta
-			r.SVarInt()                   // Offset Delta
-			keyLength, err := r.SVarInt() // Key Length
-			if err != nil {
-				return fmt.Errorf("Error reading metadata key length %w", err)
-			}
-			for range keyLength {
-				r.Skip(1) // Key
-			}
-			r.SVarInt() // Value Length
+			valueReader.Skip(1)                 // Frame Version
+			recordType, _ := valueReader.Int8() // Type
+			valueReader.Skip(1)                 // Version
 
-			r.Skip(1)                 // Frame Version
-			recordType, _ := r.Int8() // Type
-			r.Skip(1)                 // Version
 			switch recordType {
-			case 9: // RemoveTopicRecord
-				r.UUID() // TopicId
-			case 1: //UnregisterBrokerRecord
-				r.Int32() // BrokerId
-				r.Int64() // BrokerEpoch
-			case 23: // BeginTransactionRecord
-				r.CompactString() // Name length and Name
 			case 12: // Feature Level Record
-				r.CompactString() // Name length and Name
-				r.Skip(2)         // Feature Level
+				continue
 			case 2:
 				lastTopic = &protocol.Topic{}
-				topicName, err := r.CompactString()
+				topicName, err := valueReader.CompactString()
 				if err != nil {
 					return fmt.Errorf("failed to read Topic Record: %w", err)
 				}
-				uuid, err := r.UUID()
+				uuid, err := valueReader.UUID()
 				if err != nil {
 					return fmt.Errorf("failed to read Topic Record: %w", err)
 				}
@@ -108,39 +87,39 @@ func (l *MetadataLoader) Load() error {
 				lastTopic.TopicID = uuid
 			case 3:
 
-				partitionID, err := r.Int32()
+				partitionID, err := valueReader.Int32()
 				if err != nil {
 					return fmt.Errorf("failed to read Partition Record: %w", err)
 				}
-				_, err = r.UUID()
+				_, err = valueReader.UUID()
 				if err != nil {
 					return fmt.Errorf("failed to read Partition Record: %w", err)
 				}
 
-				replicaArray, err := r.CompactArrayInt32() // Replica Array
+				replicaArray, err := valueReader.CompactArrayInt32() // Replica Array
 				if err != nil {
 					return fmt.Errorf("Error reading metadata replica array %w", err)
 				}
 
-				isrArray, err := r.CompactArrayInt32() // In Sync Replica Array
+				isrArray, err := valueReader.CompactArrayInt32() // In Sync Replica Array
 				if err != nil {
 					return fmt.Errorf("Error reading in sync replica array %w", err)
 				}
 
-				r.UVarInt()                // Length of Removing Replicas array
-				r.UVarInt()                // Length of Adding Replicas array
-				leaderID, err := r.Int32() // Leader
+				valueReader.UVarInt()                // Length of Removing Replicas array
+				valueReader.UVarInt()                // Length of Adding Replicas array
+				leaderID, err := valueReader.Int32() // Leader
 				if err != nil {
 					return fmt.Errorf("Error reading metadata partition leader id %w", err)
 				}
 
-				leaderEpoch, err := r.Int32() // Leader Epoch
+				leaderEpoch, err := valueReader.Int32() // Leader Epoch
 				if err != nil {
 					return fmt.Errorf("Error reading metadata partition leader epoch %w", err)
 				}
 
-				r.Int32()            // Partition Epoch
-				r.CompactArrayUUID() // Directories Array
+				valueReader.Int32()            // Partition Epoch
+				valueReader.CompactArrayUUID() // Directories Array
 
 				part := protocol.Partition{
 					PartitionIndex: partitionID,
@@ -152,13 +131,13 @@ func (l *MetadataLoader) Load() error {
 
 				lastTopic.Partitions = append(lastTopic.Partitions, part)
 			}
-			r.UVarInt() // Tagged Fields Count
-			r.UVarInt() // Headers Array Count
+			if lastTopic.TopicName != "" {
+				l.Topics[lastTopic.TopicName] = lastTopic
+				l.TopicsByID[lastTopic.TopicID] = lastTopic
+			}
 		}
-		if lastTopic.TopicName != "" {
-			l.Topics[lastTopic.TopicName] = lastTopic
-			l.TopicsByID[lastTopic.TopicID] = lastTopic
-		}
+
+		l.BatchRecords = append(l.BatchRecords, batchRecord)
 	}
 	return nil
 }
