@@ -79,6 +79,43 @@ func TestUvarintToBytes(t *testing.T) {
 	}
 }
 
+func TestSvarintToBytes(t *testing.T) {
+	tests := []struct {
+		name      string
+		testCase  int32
+		expResult []byte
+	}{
+		{
+			name:      "-1",
+			testCase:  -1,
+			expResult: []byte{1},
+		},
+		{
+			name:      "160",
+			testCase:  160,
+			expResult: []byte{192, 2},
+		},
+		{
+			name:      "1",
+			testCase:  1,
+			expResult: []byte{2},
+		},
+		{
+			name:      "0",
+			testCase:  0,
+			expResult: []byte{0},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			newint := svarintToBytes(test.testCase)
+			require.Equal(t, test.expResult, newint)
+		})
+	}
+}
+
 func TestBytesToUvarint(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -99,6 +136,11 @@ func TestBytesToUvarint(t *testing.T) {
 			name:      "2097151",
 			testCase:  []byte{0xFF, 0xFF, 0x7F},
 			expResult: 2097151,
+		},
+		{
+			name:      "0",
+			testCase:  []byte{0},
+			expResult: 0,
 		},
 	}
 

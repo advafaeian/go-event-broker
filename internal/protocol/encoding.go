@@ -23,6 +23,14 @@ func NewReaderFromBytes(b []byte) *Reader {
 	return NewReader(bytes.NewReader(b))
 }
 
+func (r *Reader) Read(arr []byte) error {
+	_, err := io.ReadFull(r.r, arr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *Reader) Int64() (int64, error) {
 	var buf [8]byte
 	_, err := io.ReadFull(r.r, buf[:])
@@ -30,6 +38,15 @@ func (r *Reader) Int64() (int64, error) {
 		return 0, err
 	}
 	return BytesToInt64(buf[:]), nil
+}
+
+func (r *Reader) UInt32() (uint32, error) {
+	var buf [4]byte
+	_, err := io.ReadFull(r.r, buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return BytesToUInt32(buf[:]), nil
 }
 
 func (r *Reader) Int32() (int32, error) {
@@ -83,6 +100,14 @@ func (r *Reader) UVarInt() (uint32, error) {
 
 func (r *Reader) SVarInt() (int32, error) {
 	uvi, err := bytesToSvarint(r.r)
+	if err != nil {
+		return 0, err
+	}
+	return uvi, nil
+}
+
+func (r *Reader) SVarLong() (int64, error) {
+	uvi, err := bytesToSvarlong(r.r)
 	if err != nil {
 		return 0, err
 	}
@@ -160,54 +185,6 @@ func ReadCompactArray[T any, PT Decodable[T]](r *Reader) ([]T, error) {
 	return buf, nil
 }
 
-// func (r *Reader) CompactArrayTopics() ([]Topic, error) {
-// 	lengthPlusOne, err := r.UVarInt()
-// 	if lengthPlusOne == 0 {
-// 		return []Topic{}, errors.New("Error reading compact array topics: lengthplusone == 0")
-// 	}
-// 	if err != nil {
-// 		return []Topic{}, fmt.Errorf("Error reading compact array topics %w", err)
-// 	}
-// 	buf := make([]Topic, lengthPlusOne-1)
-
-// 	for i := range lengthPlusOne - 1 {
-// 		buf[i].decode(r)
-// 	}
-// 	return buf, nil
-// }
-
-// func (r *Reader) CompactArrayFetchTopics() ([]FetchRequestTopic, error) {
-// 	lengthPlusOne, err := r.UVarInt()
-// 	if lengthPlusOne == 0 {
-// 		return []FetchRequestTopic{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
-// 	}
-// 	if err != nil {
-// 		return []FetchRequestTopic{}, fmt.Errorf("Error reading compact array partition %w", err)
-// 	}
-// 	buf := make([]FetchRequestTopic, lengthPlusOne-1)
-
-// 	for i := range lengthPlusOne - 1 {
-// 		buf[i].decode(r)
-// 	}
-// 	return buf, nil
-// }
-
-// func (r *Reader) CompactArrayFetchPartitions() ([]FetchRequestPartition, error) {
-// 	lengthPlusOne, err := r.UVarInt()
-// 	if lengthPlusOne == 0 {
-// 		return []FetchRequestPartition{}, errors.New("Error reading compact array partitions: lengthplusone == 0")
-// 	}
-// 	if err != nil {
-// 		return []FetchRequestPartition{}, fmt.Errorf("Error reading compact array partition %w", err)
-// 	}
-// 	buf := make([]FetchRequestPartition, lengthPlusOne-1)
-
-// 	for i := range lengthPlusOne - 1 {
-// 		buf[i].decode(r)
-// 	}
-// 	return buf, nil
-// }
-
 func (r *Reader) Bool() (bool, error) {
 	b, err := r.r.ReadByte()
 	if err != nil {
@@ -281,15 +258,6 @@ func (p *FetchRequestPartition) decode(r *Reader) error {
 	return nil
 }
 
-// func (r *Reader) CompactString() string {
-// 	lengthPlusOne := uint8(r.Byte())
-// 	s := ""
-// 	for range lengthPlusOne - 1 {
-// 		s = s + rune(r.Byte())
-// 	}
-// 	return s
-// }
-
 func BytesToInt64(buf []byte) int64 {
 	i := int64(buf[0])<<56 | // if we do int64(buf[0])<<24), the first byte will be taken as the sign bit
 		int64(buf[1])<<48 |
@@ -299,6 +267,14 @@ func BytesToInt64(buf []byte) int64 {
 		int64(buf[5])<<16 |
 		int64(buf[6])<<8 |
 		int64(buf[7])
+	return i
+}
+
+func BytesToUInt32(buf []byte) uint32 {
+	i := uint32(buf[0])<<24 | // if we do int32(buf[0])<<24), the first byte will be taken as the sign bit
+		uint32(buf[1])<<16 |
+		uint32(buf[2])<<8 |
+		uint32(buf[3])
 	return i
 }
 
@@ -326,12 +302,28 @@ type Writer struct {
 
 func NewWriter() *Writer {
 	buf := make([]byte, 4, 128)
-	buf[0] = 0
+	// buf[0] = 0
 	return &Writer{buf: buf}
+}
+
+func (w *Writer) Len() int32 {
+	return int32(len(w.buf))
+}
+
+func (w *Writer) RawBytes() []byte {
+	return w.buf
+}
+
+func (w *Writer) Write(bytes []byte) {
+	w.buf = append(w.buf, bytes...)
 }
 
 func (w *Writer) Int64(n int64) {
 	w.buf = append(w.buf, Int64ToBytes(n)...)
+}
+
+func (w *Writer) UInt32(n uint32) {
+	w.buf = append(w.buf, UInt32ToBytes(n)...)
 }
 
 func (w *Writer) Int32(n int32) {
@@ -348,6 +340,14 @@ func (w *Writer) Int8(n int8) {
 
 func (w *Writer) UvarI(n uint32) {
 	w.buf = append(w.buf, uvarintToBytes(n)...)
+}
+
+func (w *Writer) SVarI(n int32) {
+	w.buf = append(w.buf, svarintToBytes(n)...)
+}
+
+func (w *Writer) SVarL(n int64) {
+	w.buf = append(w.buf, svarlongToBytes(n)...)
 }
 
 func (w *Writer) ApiKeys(keys []ApiKey) {
@@ -449,6 +449,15 @@ func Int64ToBytes(n int64) []byte {
 	}
 }
 
+func UInt32ToBytes(n uint32) []byte {
+	return []byte{
+		byte(n >> 24),
+		byte(n >> 16),
+		byte(n >> 8),
+		byte(n),
+	}
+}
+
 func Int32ToBytes(n int32) []byte {
 	return []byte{
 		byte(n >> 24),
@@ -465,8 +474,39 @@ func Int16ToBytes(n int16) []byte {
 	}
 }
 
+func uvarlongToBytes(n uint64) []byte {
+	bytes := make([]byte, 0, 1)
+
+	if n == 0 {
+		return []byte{0}
+	}
+
+	m := n
+
+	var mod uint64
+
+	for m > 0 {
+		mod = m % 128
+		m /= 128
+
+		bdigit := byte(mod)
+
+		if m > 0 {
+			bdigit |= 128
+		}
+
+		bytes = append(bytes, bdigit)
+	}
+
+	return bytes
+}
+
 func uvarintToBytes(n uint32) []byte {
 	bytes := make([]byte, 0, 1)
+
+	if n == 0 {
+		return []byte{0}
+	}
 
 	m := n
 
@@ -486,6 +526,30 @@ func uvarintToBytes(n uint32) []byte {
 	}
 
 	return bytes
+}
+
+func svarintToBytes(n int32) []byte {
+
+	var zigzagN uint32
+
+	if n >= 0 {
+		zigzagN = uint32(n * 2)
+	} else {
+		zigzagN = uint32(-n*2 - 1)
+	}
+
+	return uvarintToBytes(zigzagN)
+}
+
+func svarlongToBytes(n int64) []byte {
+	var zigzagN uint64
+
+	if n >= 0 {
+		zigzagN = uint64(n * 2)
+	} else {
+		zigzagN = uint64(-n*2 - 1)
+	}
+	return uvarlongToBytes(zigzagN)
 }
 
 func bytesToUvarint(r *bufio.Reader) (uint32, error) {
@@ -514,6 +578,32 @@ func bytesToUvarint(r *bufio.Reader) (uint32, error) {
 	return i, nil
 }
 
+func bytesToUvarlong(r *bufio.Reader) (uint64, error) {
+
+	var i uint64
+	var counter int
+	cont := byte(1)
+	for {
+		if cont == 0 {
+			break
+		}
+		b, err := r.ReadByte()
+
+		if err != nil {
+			return 0, err
+		}
+		cont = b >> 7
+		b &= 127 // 127 = 0111...
+		bi := uint64(b)
+		for range counter {
+			bi *= 128
+		}
+		i = i + bi
+		counter++
+	}
+	return i, nil
+}
+
 func bytesToSvarint(r *bufio.Reader) (int32, error) {
 
 	uInt, err := bytesToUvarint(r)
@@ -532,4 +622,19 @@ func bytesToSvarint(r *bufio.Reader) (int32, error) {
 func (r *Reader) Skip(n int32) error {
 	_, err := io.CopyN(io.Discard, r.r, int64(n))
 	return err
+}
+
+func bytesToSvarlong(r *bufio.Reader) (int64, error) {
+
+	uInt, err := bytesToUvarlong(r)
+	if err != nil {
+		return -1, fmt.Errorf("Error bytes to signed var int: %w", err)
+	}
+	var sInt int64
+	if uInt%2 == 0 {
+		sInt = int64(uInt) / 2
+	} else {
+		sInt = -(int64(uInt+1) / 2)
+	}
+	return sInt, nil
 }
