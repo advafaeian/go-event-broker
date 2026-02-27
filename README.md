@@ -33,7 +33,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 - 🟢️ Fetch with an unknown topic  
 - 🟢️ Fetch with an empty topic  
 - 🟢️️ Fetch single message from disk  
-- ⚪️ Fetch multiple messages from disk  
+- 🟢 ️Fetch multiple messages from disk  
 
 ### 🚀 Producing Messages
 - ⚪️ Include `Produce` in `ApiVersions`  
