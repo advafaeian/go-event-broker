@@ -37,7 +37,6 @@ func (req *DescribeTopicPartitionsRequest) Decode(red *Reader) error {
 }
 
 type DescribeTopicPartitionsResponse struct {
-	Header     ResponseHeader
 	ThrottleMs int32
 	Topics     []Topic
 	NextCursor Cursor
@@ -45,7 +44,6 @@ type DescribeTopicPartitionsResponse struct {
 }
 
 func (r *DescribeTopicPartitionsResponse) Encode(w *Writer) {
-	r.Header.Encode(w, 1) // version 1
 
 	w.Int32(r.ThrottleMs)
 	WriteCompactArray(w, r.Topics)

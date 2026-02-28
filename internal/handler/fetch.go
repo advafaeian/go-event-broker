@@ -16,10 +16,9 @@ func convertPartitions(p []protocol.Partition) []protocol.FetchResponsePartition
 	return fp
 }
 
-func HandleFetch(w *protocol.Writer, r *protocol.Reader, metadataLoader *metadata.MetadataLoader, rh protocol.ResponseHeader, errCode int16) error {
+func HandleFetch(w *protocol.Writer, r *protocol.Reader, metadataLoader *metadata.MetadataLoader, errCode int16) error {
 
 	response := protocol.FetchResponse{
-		Header:    rh,
 		ErrorCode: errCode,
 	}
 

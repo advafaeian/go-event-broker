@@ -15,7 +15,6 @@ type ApiKey struct {
 }
 
 type ApiVersionsResponse struct {
-	Header     ResponseHeader
 	ErrorCode  int16
 	ApiKeys    []ApiKey
 	ThrottleMs int32
@@ -23,7 +22,6 @@ type ApiVersionsResponse struct {
 }
 
 func (r *ApiVersionsResponse) Encode(w *Writer) {
-	r.Header.Encode(w, 0)
 	w.Int16(r.ErrorCode)
 	arrayLength := uint32(len(r.ApiKeys) + 1)
 	w.UvarI(arrayLength)
