@@ -81,6 +81,10 @@ func (br *BatchRecords) decode(red *Reader) error {
 	return nil
 }
 
+func (br *BatchRecords) Encode(w *Writer) error {
+	return br.encode(w)
+}
+
 func (br *BatchRecords) encode(w *Writer) error {
 	w.Int64(br.BaseOffset)
 	// batch lenght body
