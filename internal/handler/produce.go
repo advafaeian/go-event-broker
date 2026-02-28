@@ -38,61 +38,41 @@ func HandleProduce(w *protocol.Writer, r *protocol.Reader, metadataLoader *metad
 		return err
 	}
 
-	reqTopicName := request.Topics[0].TopicName
-
-	var errorCode int16
-
-	topic, err := metadataLoader.Get(reqTopicName)
-	// validate topic
-	var response protocol.ProduceResponse
-
-	if err != nil {
-		errorCode = protocol.UnknownTopicOrPartition
-	}
-
-	// validating paritions
-	for _, p := range topic.Partitions {
-		reqPartitionIndex := request.Topics[0].Partitions[0].PartitionIndex
-		reqTopicID := topic.TopicID
-
-		_, err := metadata.LoadPartition(topic.TopicName, reqPartitionIndex)
-		if err != nil || reqPartitionIndex != p.PartitionIndex || reqTopicID != p.TopicID {
-			errorCode = protocol.UnknownTopicOrPartition
-			continue
-		}
-	}
-
-	if errCode != 0 {
-		response = protocol.ProduceResponse{
-			Topics: []protocol.ProduceResponseTopic{
-				{
-					TopicName: reqTopicName,
-					Partitions: []protocol.ProduceResponsePartition{
-						{
-							PartitionID:    request.Topics[0].Partitions[0].PartitionIndex,
-							ErrorCode:      errorCode,
-							BaseOffset:     -1,
-							LogAppendTime:  -1,
-							LogStartOffset: -1,
-						},
-					},
-				},
-			},
-		}
-		response.Encode(w)
-		return nil
-	}
-
 	var respTopics []protocol.ProduceResponseTopic
 
 	for _, reqTopic := range request.Topics {
 
 		var respPartitions []protocol.ProduceResponsePartition
 
+		_, topicErr := metadataLoader.Get(reqTopic.TopicName)
+
 		for _, reqPartition := range reqTopic.Partitions {
 
+			var errorCode int16 = 0
+
+			if topicErr != nil {
+				errorCode = protocol.UnknownTopicOrPartition
+			} else {
+				_, err := metadata.LoadPartition(reqTopic.TopicName, reqPartition.PartitionIndex)
+				if err != nil {
+					errorCode = protocol.UnknownTopicOrPartition
+				}
+			}
+
+			if errorCode != 0 {
+				respPartitions = append(respPartitions, protocol.ProduceResponsePartition{
+					ErrorCode:      errorCode,
+					PartitionID:    reqPartition.PartitionIndex,
+					BaseOffset:     -1,
+					LogAppendTime:  -1,
+					LogStartOffset: -1,
+				})
+				errorCode = 0
+				continue
+			}
+
 			for _, batch := range reqPartition.RecordBatches {
-				WriteBatchToDisk("/tmp/kraft-combined-logs/", topic.TopicName, reqPartition.PartitionIndex, batch)
+				WriteBatchToDisk("/tmp/kraft-combined-logs/", reqTopic.TopicName, reqPartition.PartitionIndex, batch)
 			}
 			respPartitions = append(respPartitions, protocol.ProduceResponsePartition{
 				ErrorCode:      errorCode,
@@ -108,7 +88,7 @@ func HandleProduce(w *protocol.Writer, r *protocol.Reader, metadataLoader *metad
 		})
 	}
 
-	response = protocol.ProduceResponse{
+	response := protocol.ProduceResponse{
 		ThrottleMs: 0,
 		Topics:     respTopics,
 	}
