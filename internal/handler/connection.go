@@ -52,19 +52,16 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 
 		switch requestHeader.RequestApiKey {
 		case protocol.FetchKey:
-			HandleFetch(w, red, metadata, ResponseHeader, pErrCode)
+			ResponseHeader.Encode(w, 4)
+			HandleFetch(w, red, metadata, pErrCode)
 		case protocol.ApiVersionsKey:
-
-			response := protocol.ApiVersionsResponse{
-				Header:    ResponseHeader,
-				ErrorCode: pErrCode,
-				ApiKeys:   protocol.SupportedApiKeys,
-			}
-
-			response.Encode(w)
-
+			ResponseHeader.Encode(w, 0)
+			HandleApiVersions(w, red, metadata, pErrCode)
+		case protocol.ProduceKey:
+			ResponseHeader.Encode(w, 1)
+			HandleProduce(w, red, metadata, pErrCode)
 		case protocol.DescribeTopicPartitionsKey:
-
+			ResponseHeader.Encode(w, 1)
 			req := protocol.DescribeTopicPartitionsRequest{}
 
 			err := req.Decode(red)
@@ -73,7 +70,6 @@ func HandleConnection(conn net.Conn, metadata *metadata.MetadataLoader) {
 			}
 
 			response := protocol.DescribeTopicPartitionsResponse{
-				Header:     ResponseHeader,
 				NextCursor: nil,
 			}
 			slices.SortFunc(req.Topics, func(a, b protocol.Topic) int {

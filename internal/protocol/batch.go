@@ -23,6 +23,11 @@ type BatchRecords struct {
 }
 
 func (br *BatchRecords) Decode(red *Reader) error {
+	return br.decode(red)
+
+}
+
+func (br *BatchRecords) decode(red *Reader) error {
 	var err error
 
 	if br.BaseOffset, err = red.Int64(); err != nil {

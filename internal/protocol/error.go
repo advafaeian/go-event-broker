@@ -2,6 +2,8 @@ package protocol
 
 const NoError = int16(0)
 const UnknownTopicID = int16(100)
+const UnknownTopicOrPartition = int16(3)
+const UnsupportedVersion = int16(35)
 
 type ProtocolError struct {
 	Code    int16
@@ -26,6 +28,6 @@ var SupportedVersions = func() map[int16]VersionRange {
 }()
 
 var ErrUnsupportedVersion = &ProtocolError{
-	Code:    35,
+	Code:    UnsupportedVersion,
 	Message: "only api versions 0-4 are accepted",
 }
