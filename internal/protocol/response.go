@@ -5,7 +5,7 @@ type ResponseHeader struct {
 	TagBuffer     TagBuffer
 }
 
-func (r *ResponseHeader) Encode(w *Writer, version int) {
+func (r *ResponseHeader) Encode(w *Writer, version int16) {
 	w.Int32(r.CorrelationID)
 	if version > 0 {
 		w.TagBuffer(r.TagBuffer)
