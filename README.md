@@ -38,7 +38,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 ### 🚀 Producing Messages
 - 🟢 Include `Produce` in `ApiVersions`  
 - 🟢 Respond for invalid topic or partition  
-- ⚪ Respond for valid topic and partition  
+- 🟢 Respond for valid topic and partition  
 - ⚪ Produce a single record  
 - ⚪ Produce multiple records  
 - ⚪ Produce to multiple partitions  
