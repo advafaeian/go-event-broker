@@ -42,4 +42,4 @@ I'm Documenting the progress while completing each stage of the challenge.
 - 🟢 Produce a single record  
 - 🟢 Produce multiple records  
 - 🟢 Produce to multiple partitions  
-- ⚪ Produce to multiple partitions of multiple topics  
+- 🟢 Produce to multiple partitions of multiple topics  
