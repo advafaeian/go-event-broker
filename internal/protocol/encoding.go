@@ -399,7 +399,7 @@ func WriteCompactArray[T any, PT Encodable[T]](w *Writer, items []T) {
 	}
 }
 
-func (p *Partition) encode(w *Writer) error {
+func (p *MetadataPartition) encode(w *Writer) error {
 	w.Int16(p.ErrorCode)
 	w.Int32(p.PartitionIndex)
 	w.Int32(p.LeaderId)

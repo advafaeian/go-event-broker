@@ -20,7 +20,7 @@ type Topic struct {
 	TopicName            string
 	TopicID              UUID
 	IsInternal           bool
-	Partitions           []Partition
+	Partitions           []MetadataPartition
 	AuthorizedOperations int32
 	TagBuffer            TagBuffer
 }
@@ -43,9 +43,10 @@ func (t *Topic) decode(r *Reader) error {
 	return nil
 }
 
-type Partition struct {
+type MetadataPartition struct {
 	ErrorCode              int16
 	PartitionIndex         int32
+	TopicID                UUID
 	LeaderId               int32
 	LeaderEpoch            int32
 	ReplicaNodes           []int32

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func convertPartitions(p []protocol.Partition) []protocol.FetchResponsePartition {
+func convertPartitions(p []protocol.MetadataPartition) []protocol.FetchResponsePartition {
 	fp := make([]protocol.FetchResponsePartition, len(p))
 
 	for i := range p {

@@ -91,7 +91,7 @@ func (l *MetadataLoader) Load() error {
 				if err != nil {
 					return fmt.Errorf("failed to read Partition Record: %w", err)
 				}
-				_, err = valueReader.UUID()
+				topicId, err := valueReader.UUID()
 				if err != nil {
 					return fmt.Errorf("failed to read Partition Record: %w", err)
 				}
@@ -121,8 +121,9 @@ func (l *MetadataLoader) Load() error {
 				valueReader.Int32()            // Partition Epoch
 				valueReader.CompactArrayUUID() // Directories Array
 
-				part := protocol.Partition{
+				part := protocol.MetadataPartition{
 					PartitionIndex: partitionID,
+					TopicID:        topicId,
 					LeaderId:       leaderID,
 					LeaderEpoch:    leaderEpoch,
 					ReplicaNodes:   replicaArray,
