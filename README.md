@@ -39,7 +39,7 @@ I'm Documenting the progress while completing each stage of the challenge.
 - 🟢 Include `Produce` in `ApiVersions`  
 - 🟢 Respond for invalid topic or partition  
 - 🟢 Respond for valid topic and partition  
-- ⚪ Produce a single record  
+- 🟢 Produce a single record  
 - ⚪ Produce multiple records  
 - ⚪ Produce to multiple partitions  
 - ⚪ Produce to multiple partitions of multiple topics  
